@@ -1,11 +1,12 @@
 summary: |
-  Nimbus Buddy is the primary desktop companion and launcher for every isolated applet
-  in the workspace. It replaces the traditional dashboard UI with a persistent, draggable
-  assistant that surfaces the registered mini-apps.
+  Nimbus Buddy is the chat-forward desktop companion that now pairs a conversation view
+  with an inline applet launcher and sandboxed host panel. The shell is draggable,
+  minimisable, and responsible for orchestrating ChatGPT API configuration through the
+  tray menu.
 objectives:
   - Keep the Nimbus shell lightweight and dependency-free (vanilla HTML, CSS, JS).
   - Load applet metadata dynamically from the root registry without manual wiring.
-  - Provide an accessible surface for selecting applets and managing buddy visibility.
+  - Provide an accessible chat surface with composer, timeline, and tray controls.
   - Support cosmetic "skins" that can be swapped without altering applet integrations.
 constraints:
   - Do not couple applet logic or assets into the Nimbus bundle.
@@ -14,6 +15,7 @@ constraints:
   - Preserve responsiveness for desktop and tablet layouts.
 success_criteria:
   - Nimbus can be repositioned, minimized, and restored without page refreshes.
-  - Adding an entry to applets.json surfaces a new applet in the buddy menu automatically.
+  - Adding an entry to applets.json surfaces a new applet in the mention dropdown and tray list automatically.
   - Swapping the active skin updates visuals via data attributes or CSS variables only.
   - Network failures while loading applets.json show a friendly, recoverable state.
+  - Mentioning an applet with `@` launches it inside the iframe host without breaking the chat flow.

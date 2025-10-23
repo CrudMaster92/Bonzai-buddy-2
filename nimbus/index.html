@@ -8,13 +8,72 @@
   </head>
   <body>
     <div id="nimbus-root" class="nimbus-shell" data-skin="default">
-      <div class="buddy-avatar" role="img" aria-label="Nimbus buddy avatar"></div>
-      <button class="buddy-toggle" type="button" aria-haspopup="true" aria-expanded="false">
-        Menu
-      </button>
-      <nav class="buddy-menu" aria-label="Nimbus applet menu" hidden>
-        <ul id="applet-list"></ul>
-      </nav>
+      <header class="shell-header">
+        <div class="buddy-avatar" role="img" aria-label="Nimbus buddy avatar"></div>
+        <div class="shell-header-copy">
+          <h1 class="shell-title">Nimbus</h1>
+          <p class="shell-subtitle">ChatGPT link active — manage keys from the tray.</p>
+        </div>
+        <div class="tray" data-open="false">
+          <button
+            class="tray-toggle"
+            type="button"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="nimbus-tray-menu"
+          >
+            Tray
+          </button>
+          <nav id="nimbus-tray-menu" class="tray-menu" aria-label="Nimbus tray menu" hidden>
+            <ul>
+              <li>
+                <button type="button" class="tray-action" data-action="chatgpt-settings">
+                  ChatGPT API Settings
+                </button>
+              </li>
+              <li>
+                <button type="button" class="tray-action" data-action="collapse">
+                  Collapse Nimbus
+                </button>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </header>
+      <main class="chat-window" aria-label="Nimbus chat window">
+        <div class="chat-intro" role="note">
+          Ask anything or type <kbd>@</kbd> to open an applet inline.
+        </div>
+        <div id="message-log" class="message-log" role="log" aria-live="polite"></div>
+        <form id="composer-form" class="composer" autocomplete="off">
+          <label class="sr-only" for="composer-input">Message Nimbus</label>
+          <textarea
+            id="composer-input"
+            name="message"
+            rows="1"
+            placeholder="Send a message..."
+            aria-label="Message Nimbus"
+            spellcheck="true"
+          ></textarea>
+          <div id="mention-suggestions" class="mention-suggestions" role="listbox" hidden></div>
+          <div class="composer-actions">
+            <span class="composer-hint">Mentions trigger applets. Settings live in the tray.</span>
+            <button type="submit" class="composer-send">Send</button>
+          </div>
+        </form>
+      </main>
+      <section id="applet-host" class="applet-host" hidden aria-live="polite">
+        <header class="applet-host-header">
+          <div>
+            <span class="applet-host-label">Applet</span>
+            <h2 id="applet-title" class="applet-title"></h2>
+          </div>
+          <button id="applet-close" type="button" class="applet-close" aria-label="Close applet">
+            Close
+          </button>
+        </header>
+        <div id="applet-frame-wrapper" class="applet-frame-wrapper"></div>
+      </section>
     </div>
     <script src="./nimbus.js" type="module"></script>
   </body>
