@@ -21,14 +21,16 @@
             aria-haspopup="true"
             aria-expanded="false"
             aria-controls="nimbus-tray-menu"
+            title="Nimbus taskbar"
+            aria-label="Open Nimbus taskbar menu"
           >
-            Tray
+            ☰
           </button>
           <nav id="nimbus-tray-menu" class="tray-menu" aria-label="Nimbus tray menu" hidden>
             <ul>
               <li>
-                <button type="button" class="tray-action" data-action="chatgpt-settings">
-                  ChatGPT API Settings
+                <button type="button" class="tray-action" data-action="open-settings">
+                  Open Settings
                 </button>
               </li>
               <li>
@@ -74,6 +76,54 @@
         </header>
         <div id="applet-frame-wrapper" class="applet-frame-wrapper"></div>
       </section>
+    </div>
+    <div id="settings-overlay" class="settings-overlay" hidden>
+      <div class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <header class="settings-header">
+          <h2 id="settings-title">Nimbus Settings</h2>
+          <button id="settings-close" type="button" class="settings-close" aria-label="Close settings">×</button>
+        </header>
+        <section class="settings-section" aria-labelledby="api-settings-title">
+          <h3 id="api-settings-title">OpenAI connection</h3>
+          <p class="settings-description">
+            Store your personal API key to chat with the latest OpenAI models. Keys are saved to this
+            device only.
+          </p>
+          <form id="settings-form" class="settings-form">
+            <div class="form-field">
+              <label for="settings-api-key">API key</label>
+              <div class="form-field-inline">
+                <input
+                  id="settings-api-key"
+                  name="apiKey"
+                  type="password"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="sk-..."
+                  aria-describedby="api-key-help"
+                />
+                <button id="api-key-toggle" type="button" class="secondary">Show</button>
+              </div>
+              <p id="api-key-help" class="field-help">Only enter keys from accounts you trust.</p>
+            </div>
+            <div class="form-field">
+              <label for="settings-model">Model</label>
+              <div class="form-field-inline">
+                <select id="settings-model" name="model" disabled>
+                  <option value="" disabled selected>Enter an API key to load models</option>
+                </select>
+                <button id="refresh-models" type="button" class="secondary" disabled>Refresh</button>
+              </div>
+              <p class="field-help">Nimbus uses the OpenAI Responses API with GPT-5-ready models.</p>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary">Save</button>
+              <button id="settings-cancel" type="button" class="secondary">Cancel</button>
+            </div>
+            <output id="settings-feedback" class="settings-feedback" role="status" aria-live="polite"></output>
+          </form>
+        </section>
+      </div>
     </div>
     <script src="./nimbus.js" type="module"></script>
   </body>
