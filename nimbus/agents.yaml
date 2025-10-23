@@ -1,0 +1,19 @@
+summary: |
+  Nimbus Buddy is the primary desktop companion and launcher for every isolated applet
+  in the workspace. It replaces the traditional dashboard UI with a persistent, draggable
+  assistant that surfaces the registered mini-apps.
+objectives:
+  - Keep the Nimbus shell lightweight and dependency-free (vanilla HTML, CSS, JS).
+  - Load applet metadata dynamically from the root registry without manual wiring.
+  - Provide an accessible surface for selecting applets and managing buddy visibility.
+  - Support cosmetic "skins" that can be swapped without altering applet integrations.
+constraints:
+  - Do not couple applet logic or assets into the Nimbus bundle.
+  - Avoid theme palettes that mirror the old cosmic purple/glassmorphism aesthetic.
+  - Maintain strict iframe-based isolation when applets are embedded.
+  - Preserve responsiveness for desktop and tablet layouts.
+success_criteria:
+  - Nimbus can be repositioned, minimized, and restored without page refreshes.
+  - Adding an entry to applets.json surfaces a new applet in the buddy menu automatically.
+  - Swapping the active skin updates visuals via data attributes or CSS variables only.
+  - Network failures while loading applets.json show a friendly, recoverable state.

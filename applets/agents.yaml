@@ -1,0 +1,15 @@
+summary: |
+  The applets directory contains all plug-in experiences that Nimbus can launch. Each
+  applet is self-contained and must declare its own metadata and agent guidance files.
+objectives:
+  - Keep applet code isolated to its folder with no shared mutable state.
+  - Document every applet with `agents.md` and `agents.yaml` to guide contributors.
+  - Require registration through the root `applets.json` registry before Nimbus displays it.
+constraints:
+  - Applets must load through iframes or separate windows; never rely on direct imports.
+  - All assets and dependencies should live inside the applet folder.
+  - Avoid referencing the Nimbus implementation details from within applets.
+success_criteria:
+  - Adding a folder with the expected files and registering it exposes the applet in Nimbus.
+  - Removing an applet folder cleanly deregisters it without side effects.
+  - Each applet clearly states its permissions and expectations inside its metadata.

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nimbus Buddy</title>
+    <link rel="stylesheet" href="./nimbus.css" />
+  </head>
+  <body>
+    <div id="nimbus-root" class="nimbus-shell" data-skin="default">
+      <div class="buddy-avatar" role="img" aria-label="Nimbus buddy avatar"></div>
+      <button class="buddy-toggle" type="button" aria-haspopup="true" aria-expanded="false">
+        Menu
+      </button>
+      <nav class="buddy-menu" aria-label="Nimbus applet menu" hidden>
+        <ul id="applet-list"></ul>
+      </nav>
+    </div>
+    <script src="./nimbus.js" type="module"></script>
+  </body>
+</html>
