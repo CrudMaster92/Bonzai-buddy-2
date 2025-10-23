@@ -18,6 +18,26 @@ applets or manipulates Nimbus should respect the following guardrails:
 - **Accessibility:** Buttons must remain keyboard-focusable, menu items require ARIA
   states, and error states should include readable text.
 
+## Chat-forward shell
+
+Nimbus now presents as a chat workspace with a message timeline, composer, and tray
+settings. When extending or refactoring the UI, keep the following rules in mind:
+
+- **Conversation state lives in Nimbus.** Messages flow through `nimbus.js`; new code
+  must preserve the `data-role` structure so author/system/app messages can be styled.
+- **Tray menu controls API credentials.** The tray toggle reveals inputs for ChatGPT
+  API configuration. Future changes should reuse the existing settings panel rather
+  than scattering inputs across the shell.
+- **Inline applet mentions.** Typing `@` inside the composer opens the applet search
+  list. Filtering, keyboard navigation, and launching are all handled in
+  `setupMentionHandling`. Do not bypass this hook when adding new composer features.
+- **Applet execution stays sandboxed.** Selecting a suggestion loads the applet inside
+  the dedicated iframe host. The mention list simply resolves the target applet ID;
+  do not inject applet markup into the chat stream.
+- **Iframe host etiquette.** The right-side host swaps between loaded applets and the
+  empty state. Ensure new behaviours keep the iframe URL and title attributes synced
+  with the selected applet metadata.
+
 When expanding this folder, document any non-trivial design decisions here and keep the
 YAML summary aligned. Avoid reusing the "Cirrus" label in UI copy; the buddy's canonical
 name is **Nimbus**.
