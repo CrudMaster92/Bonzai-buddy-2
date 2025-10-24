@@ -304,6 +304,82 @@ body {
   --skin-buddy-face-offset-y: 2px;
 }
 
+.nimbus-shell[data-skin='cubic-cadet'] {
+  --skin-buddy-glow: radial-gradient(
+    circle at 50% 42%,
+    rgba(255, 219, 173, 0.65) 0%,
+    rgba(249, 115, 22, 0.18) 54%,
+    rgba(249, 115, 22, 0)
+  );
+  --skin-buddy-glow-opacity: 0.78;
+  --skin-buddy-glow-inset: 30px 24px 18px;
+  --skin-buddy-glow-radius: 34% 34% 42% 42% / 40% 40% 48% 48%;
+  --skin-buddy-body-bg: linear-gradient(130deg, #fef3c7 0%, #fdba74 42%, #fb923c 100%);
+  --skin-buddy-body-shadow: 0 26px 48px rgba(124, 58, 18, 0.32),
+    0 10px 24px rgba(234, 88, 12, 0.18);
+  --skin-buddy-body-inset: 18px 22px 26px;
+  --skin-buddy-body-radius: 14px;
+  --skin-buddy-highlight: linear-gradient(145deg, rgba(255, 255, 255, 0.78), rgba(253, 186, 116, 0.22));
+  --skin-buddy-highlight-inset: 22px 26px 34px;
+  --skin-buddy-highlight-radius: 10px;
+  --skin-eye-color: #1f2937;
+  --skin-eye-highlight: rgba(255, 255, 255, 0.9);
+  --skin-cheek-color: rgba(253, 186, 116, 0.62);
+  --skin-mouth-color: #1f2937;
+  --skin-mouth-shadow: drop-shadow(0 6px 4px rgba(30, 64, 175, 0.18));
+  --skin-chat-toggle-bg: linear-gradient(135deg, #fef3c7 0%, #fb923c 100%);
+  --skin-chat-toggle-shadow: 0 18px 26px rgba(124, 58, 18, 0.32);
+  --skin-chat-toggle-shadow-hover: 0 24px 30px rgba(249, 115, 22, 0.42);
+  --skin-voice-toggle-bg: linear-gradient(140deg, #e0f2fe 0%, #38bdf8 100%);
+  --skin-voice-toggle-shadow: 0 16px 24px rgba(8, 145, 178, 0.35);
+  --skin-voice-toggle-shadow-hover: 0 22px 28px rgba(14, 165, 233, 0.45);
+  --skin-voice-ring-color: rgba(14, 165, 233, 0.62);
+  --skin-voice-mouth-accent: #2563eb;
+  --skin-buddy-face-width: 96px;
+  --skin-buddy-face-height: 62px;
+  --skin-buddy-face-offset-y: 0px;
+}
+
+.nimbus-shell[data-skin='cubic-cadet'] .buddy-body {
+  z-index: 2;
+}
+
+.nimbus-shell[data-skin='cubic-cadet'] .buddy::before,
+.nimbus-shell[data-skin='cubic-cadet'] .buddy::after {
+  content: '';
+  position: absolute;
+  top: 104px;
+  width: 40px;
+  height: 84px;
+  background: linear-gradient(160deg, #fee2b7 0%, #fb923c 100%);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.24), 0 14px 20px rgba(234, 88, 12, 0.28);
+  z-index: 1;
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.nimbus-shell[data-skin='cubic-cadet'] .buddy::before {
+  left: 0;
+  transform: translate(-24px, -10px);
+}
+
+.nimbus-shell[data-skin='cubic-cadet'] .buddy::after {
+  right: 0;
+  transform: translate(24px, -10px);
+}
+
+.nimbus-shell[data-skin='cubic-cadet'] .buddy:hover::before,
+.nimbus-shell[data-skin='cubic-cadet'] .buddy:focus-visible::before {
+  transform: translate(-28px, -18px);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3), 0 20px 26px rgba(234, 88, 12, 0.32);
+}
+
+.nimbus-shell[data-skin='cubic-cadet'] .buddy:hover::after,
+.nimbus-shell[data-skin='cubic-cadet'] .buddy:focus-visible::after {
+  transform: translate(28px, -18px);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3), 0 20px 26px rgba(234, 88, 12, 0.32);
+}
+
 .nimbus-shell[data-online="true"] .buddy-body::after {
   opacity: 1;
 }
