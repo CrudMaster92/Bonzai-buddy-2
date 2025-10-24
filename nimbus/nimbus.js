@@ -12,6 +12,74 @@ const chatHeader = document.querySelector('.chat-header');
 const voiceToggle = document.getElementById('voice-toggle');
 const voiceAudio = document.getElementById('voice-audio');
 
+const AudioContextCtor =
+  typeof window !== 'undefined' ? window.AudioContext || window.webkitAudioContext : null;
+
+const SOUND_PRESETS = {
+  'chat-open': { frequency: 520, glideTo: 660, duration: 0.18, volume: 0.18, type: 'sine' },
+  'chat-close': { frequency: 420, glideTo: 260, duration: 0.2, volume: 0.16, type: 'triangle' },
+  'message-send': { frequency: 760, glideTo: 920, duration: 0.12, volume: 0.2, type: 'sine' },
+  'message-receive': { frequency: 420, glideTo: 540, duration: 0.22, volume: 0.22, type: 'sine' },
+  'voice-start': { frequency: 600, glideTo: 900, duration: 0.24, volume: 0.22, type: 'square' },
+  'voice-stop': { frequency: 360, glideTo: 240, duration: 0.24, volume: 0.2, type: 'triangle' },
+  alert: { frequency: 240, duration: 0.32, volume: 0.24, type: 'sawtooth' },
+};
+
+let audioContext = null;
+
+function ensureNimbusAudioContext() {
+  if (!AudioContextCtor) return null;
+  if (!audioContext) {
+    try {
+      audioContext = new AudioContextCtor();
+    } catch (error) {
+      console.warn('Nimbus could not start audio context', error);
+      audioContext = null;
+    }
+  }
+  return audioContext;
+}
+
+function playNimbusSound(name) {
+  const preset = SOUND_PRESETS[name];
+  if (!preset) return;
+
+  try {
+    const context = ensureNimbusAudioContext();
+    if (!context) return;
+    if (context.state === 'suspended' && typeof context.resume === 'function') {
+      context.resume().catch(() => {});
+    }
+
+    const now = context.currentTime;
+    const duration = Math.max(0.08, preset.duration ?? 0.18);
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const frequency = Math.max(80, preset.frequency ?? 440);
+    const targetFrequency = preset.glideTo ? Math.max(40, preset.glideTo) : null;
+    const peakVolume = Math.max(0.001, Math.min(preset.volume ?? 0.2, 0.6));
+
+    oscillator.type = preset.type ?? 'sine';
+    oscillator.frequency.setValueAtTime(frequency, now);
+    if (targetFrequency) {
+      oscillator.frequency.linearRampToValueAtTime(targetFrequency, now + duration);
+    }
+
+    gain.gain.setValueAtTime(0.0001, now);
+    const attackTime = Math.min(0.05, preset.attack ?? 0.015);
+    gain.gain.exponentialRampToValueAtTime(peakVolume, now + attackTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+
+    oscillator.start(now);
+    oscillator.stop(now + duration + 0.08);
+  } catch (error) {
+    console.warn('Nimbus could not play a sound', error);
+  }
+}
+
 const DEFAULT_SKIN = root?.dataset.skin || 'cumulus';
 const SKIN_OPTIONS = [
   { key: 'cumulus', label: 'Cumulus (Daylight)' },
@@ -256,6 +324,11 @@ function appendMessage(role, content) {
   bubble.textContent = content;
   messageLog.appendChild(bubble);
   messageLog.scrollTop = messageLog.scrollHeight;
+  if (role === 'user') {
+    playNimbusSound('message-send');
+  } else if (role === 'assistant') {
+    playNimbusSound('message-receive');
+  }
   return bubble;
 }
 
@@ -306,6 +379,7 @@ function updateVoiceToggleAvailability() {
 }
 
 function setVoiceState(state, options = {}) {
+  const previous = voiceState;
   voiceState = state;
   if (root) {
     if (state === 'idle' || state === 'error') {
@@ -330,6 +404,18 @@ function setVoiceState(state, options = {}) {
   }
 
   updateVoiceToggleAvailability();
+
+  if (!options.quiet && state !== previous) {
+    if (state === 'connecting') {
+      playNimbusSound('voice-start');
+    } else if (state === 'active' && previous !== 'connecting') {
+      playNimbusSound('voice-start');
+    } else if (state === 'idle' && (previous === 'active' || previous === 'connecting')) {
+      playNimbusSound('voice-stop');
+    } else if (state === 'error') {
+      playNimbusSound('alert');
+    }
+  }
 
   if (options.announce) {
     setStatus(options.announce);
@@ -413,7 +499,7 @@ async function negotiateVoiceSession({ sdp, model, voice }) {
 
 function stopVoiceChat(options = {}) {
   cleanupVoiceSession();
-  setVoiceState('idle');
+  setVoiceState('idle', { quiet: options.silent });
   if (!options.silent) {
     const reason = options.reason || 'Voice chat ended.';
     setStatus(reason);
@@ -939,6 +1025,7 @@ async function handleComposerSubmit(event) {
     } else {
       appendMessage('system', error.message || 'Nimbus ran into a problem.');
     }
+    playNimbusSound('alert');
     if (conversationHistory[conversationHistory.length - 1]?.role === 'user') {
       conversationHistory.pop();
     }
@@ -953,6 +1040,11 @@ function toggleChatPanel(forceOpen) {
   const isHidden = chatPanel.hasAttribute('hidden');
   const shouldOpen = forceOpen ?? isHidden;
 
+  const isChanging = (shouldOpen && isHidden) || (!shouldOpen && !isHidden);
+  if (!isChanging) {
+    return;
+  }
+
   if (shouldOpen) {
     chatPanel.removeAttribute('hidden');
     chatToggle.setAttribute('aria-expanded', 'true');
@@ -963,11 +1055,13 @@ function toggleChatPanel(forceOpen) {
       positionChatPanel({ reset: !chatPanelPosition });
       window.setTimeout(() => composerInput?.focus(), 40);
     });
+    playNimbusSound('chat-open');
   } else {
     chatPanel.setAttribute('hidden', 'hidden');
     chatToggle.setAttribute('aria-expanded', 'false');
     root?.setAttribute('data-chat-open', 'false');
     chatToggle.focus();
+    playNimbusSound('chat-close');
   }
 }
 
