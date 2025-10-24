@@ -91,6 +91,7 @@ const SKIN_OPTIONS = [
   { key: 'mist-harbor', label: 'Mist Harbor (Coastal hush)' },
   { key: 'whisker-haven', label: 'Whisker Haven (Cozy cat companion)' },
   { key: 'cubic-cadet', label: 'Cubic Cadet (Blocky blaze)' },
+  { key: 'forerunner-oracle', label: 'Forerunner Oracle (Halo monitor homage)' },
 ];
 const AVAILABLE_SKINS = new Set(SKIN_OPTIONS.map((entry) => entry.key));
 const SKIN_LABEL_LOOKUP = SKIN_OPTIONS.reduce((map, entry) => {

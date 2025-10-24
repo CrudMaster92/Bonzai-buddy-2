@@ -17,11 +17,12 @@ between sessions.
 | `mist-harbor` | Fog-washed shoreline blues with sea-glass trim and gentle coral blush for a calm coastal companion. |
 | `whisker-haven` | Calico-inspired cat with perky ears, soft whiskers, and a sunset glow for a cozy feline friend. |
 | `cubic-cadet` | Blocky ember chassis with squared edges, flexing arm panels, and sunny circuitry accents for a retro arcade cadet. |
+| `forerunner-oracle` | Luminous Forerunner monitor homage with midnight alloys, cyan core glow, and amber control glyphs. |
 
 Run-time helpers expose the available keys in case you want to wire a settings toggle:
 
 ```js
-window.nimbusSkins.list(); // ["cumulus", "aurora-drift", "sage-lantern", "robot-overdrive", "mist-harbor", "whisker-haven", "cubic-cadet"]
+window.nimbusSkins.list(); // ["cumulus", "aurora-drift", "sage-lantern", "robot-overdrive", "mist-harbor", "whisker-haven", "cubic-cadet", "forerunner-oracle"]
 window.nimbusSkins.current(); // returns the currently applied skin key
 window.nimbusSkins.apply('mist-harbor'); // switches skin and persists the choice
 ```
