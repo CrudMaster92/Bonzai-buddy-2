@@ -6,6 +6,12 @@ const messageLog = document.getElementById('message-log');
 const composerForm = document.getElementById('composer-form');
 const composerInput = document.getElementById('composer-input');
 const statusRegion = document.getElementById('nimbus-status');
+const chatStatusText = document.querySelector('[data-chat-status]');
+
+if (root && !root.hasAttribute('data-chat-open')) {
+  root.setAttribute('data-chat-open', 'false');
+}
+
 
 const settingsOverlay = document.getElementById('settings-overlay');
 const settingsForm = document.getElementById('settings-form');
@@ -56,6 +62,15 @@ function setStatus(text) {
   statusRegion.textContent = text;
 }
 
+function updateChatStatus(text) {
+  if (!chatStatusText) return;
+  chatStatusText.textContent = text;
+}
+
+function currentChatStatus() {
+  return chatStatusText?.textContent?.trim() ?? '';
+}
+
 function setComposerBusy(state) {
   isSending = state;
   if (composerInput) {
@@ -65,6 +80,12 @@ function setComposerBusy(state) {
   const submit = composerForm?.querySelector('button[type="submit"]');
   if (submit) {
     submit.disabled = state;
+  }
+  if (state) {
+    updateChatStatus('Thinking...');
+  } else if (!chatPanel?.hasAttribute('hidden') && currentChatStatus() === 'Thinking...') {
+    const online = root?.dataset.online === 'true';
+    updateChatStatus(online ? 'Ready' : 'Set up');
   }
 }
 
@@ -448,6 +469,7 @@ async function handleComposerSubmit(event) {
     appendMessage('assistant', trimmed);
     conversationHistory.push({ role: 'assistant', content: trimmed });
     setStatus('Reply received');
+    updateChatStatus('Ready');
   } catch (error) {
     const last = messageLog?.lastElementChild;
     if (last?.dataset.role === 'system' && last.textContent === 'Nimbus is thinking...') {
@@ -458,6 +480,7 @@ async function handleComposerSubmit(event) {
     if (conversationHistory[conversationHistory.length - 1]?.role === 'user') {
       conversationHistory.pop();
     }
+    updateChatStatus('Check settings');
   } finally {
     setComposerBusy(false);
   }
@@ -471,10 +494,14 @@ function toggleChatPanel(forceOpen) {
   if (shouldOpen) {
     chatPanel.removeAttribute('hidden');
     chatToggle.setAttribute('aria-expanded', 'true');
+    root?.setAttribute('data-chat-open', 'true');
+    const online = root?.dataset.online === 'true';
+    updateChatStatus(online ? 'Ready' : 'Set up');
     window.setTimeout(() => composerInput?.focus(), 40);
   } else {
     chatPanel.setAttribute('hidden', 'hidden');
     chatToggle.setAttribute('aria-expanded', 'false');
+    root?.setAttribute('data-chat-open', 'false');
     chatToggle.focus();
   }
 }
@@ -532,6 +559,8 @@ function installEventListeners() {
 
 function greet() {
   appendMessage('assistant', 'Hi! Nimbus is ready whenever you want to chat.');
+  const online = root?.dataset.online === 'true';
+  updateChatStatus(online ? 'Ready' : 'Set up');
 }
 
 (async function bootstrap() {
