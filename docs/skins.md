@@ -13,11 +13,12 @@ between sessions.
 | `cumulus` | Airy palette with soft blues and daylight glow. This is the shipping default. |
 | `aurora-drift` | Night-sky bloom with neon cheeks and turquoise audio controls for an after-hours vibe. |
 | `sage-lantern` | Verdant lantern glow with leaf-like silhouette, warm amber cheeks, and mossy controls for a grounded feel. |
+| `robot-overdrive` | Polished chrome shell with cyan circuitry, holo glow, and industrial shadows for a retro-futuristic companion. |
 
 Run-time helpers expose the available keys in case you want to wire a settings toggle:
 
 ```js
-window.nimbusSkins.list(); // ["cumulus", "aurora-drift", "sage-lantern"]
+window.nimbusSkins.list(); // ["cumulus", "aurora-drift", "sage-lantern", "robot-overdrive"]
 window.nimbusSkins.current(); // returns the currently applied skin key
 window.nimbusSkins.apply('aurora-drift'); // switches skin and persists the choice
 ```

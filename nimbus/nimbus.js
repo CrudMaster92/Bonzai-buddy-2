@@ -13,7 +13,17 @@ const voiceToggle = document.getElementById('voice-toggle');
 const voiceAudio = document.getElementById('voice-audio');
 
 const DEFAULT_SKIN = root?.dataset.skin || 'cumulus';
-const AVAILABLE_SKINS = new Set(['cumulus', 'aurora-drift', 'sage-lantern']);
+const SKIN_OPTIONS = [
+  { key: 'cumulus', label: 'Cumulus (Daylight)' },
+  { key: 'aurora-drift', label: 'Aurora Drift (Neon dusk)' },
+  { key: 'sage-lantern', label: 'Sage Lantern (Garden glow)' },
+  { key: 'robot-overdrive', label: 'Robot Overdrive (Chrome circuitry)' },
+];
+const AVAILABLE_SKINS = new Set(SKIN_OPTIONS.map((entry) => entry.key));
+const SKIN_LABEL_LOOKUP = SKIN_OPTIONS.reduce((map, entry) => {
+  map.set(entry.key, entry.label);
+  return map;
+}, new Map());
 const SKIN_STORAGE_KEY = 'nimbus.shell.skin';
 
 function normaliseSkinVariant(value) {
@@ -90,6 +100,7 @@ const apiKeyRemoveButton = document.getElementById('api-key-remove');
 const modelSelect = document.getElementById('settings-model');
 const refreshModelsButton = document.getElementById('refresh-models');
 const settingsFeedback = document.getElementById('settings-feedback');
+const skinSelect = document.getElementById('settings-skin');
 
 const desktopAPI = window.desktopAPI ?? null;
 const isDesktopShell = Boolean(desktopAPI);
@@ -112,6 +123,7 @@ let hasStoredApiKey = false;
 let cachedApiKey = '';
 let cachedModel = '';
 let cachedModels = [];
+let cachedSkin = DEFAULT_SKIN;
 let conversationHistory = [{ role: 'system', content: SYSTEM_MESSAGE }];
 let isSending = false;
 let removeStoredKey = false;
@@ -520,12 +532,15 @@ async function readPersistedSettings() {
       cachedApiKey = '';
       cachedModel = settings?.model ?? '';
       cachedModels = Array.isArray(settings?.models) ? settings.models : [];
+      cachedSkin = normaliseSkinVariant(settings?.skin ?? cachedSkin);
+      applySkinVariant(cachedSkin, { persist: false });
     } catch (error) {
       console.warn('Unable to read settings from desktop shell', error);
       hasStoredApiKey = false;
       cachedApiKey = '';
       cachedModel = '';
       cachedModels = [];
+      cachedSkin = applySkinVariant(DEFAULT_SKIN, { persist: false });
     }
     updateOnlineState();
     return;
@@ -537,12 +552,14 @@ async function readPersistedSettings() {
     const rawModels = window.localStorage.getItem(STORAGE_KEYS.models);
     cachedModels = rawModels ? JSON.parse(rawModels) : [];
     hasStoredApiKey = Boolean(cachedApiKey);
+    cachedSkin = normaliseSkinVariant(root?.dataset.skin ?? DEFAULT_SKIN);
   } catch (error) {
     console.warn('Unable to read settings from local storage', error);
     cachedApiKey = '';
     cachedModel = '';
     cachedModels = [];
     hasStoredApiKey = false;
+    cachedSkin = normaliseSkinVariant(root?.dataset.skin ?? DEFAULT_SKIN);
   }
 
   updateOnlineState();
@@ -608,6 +625,25 @@ function populateModelOptions(models, selectedValue) {
   modelSelect.disabled = false;
 }
 
+function populateSkinOptions(selectedValue) {
+  if (!skinSelect) return;
+  const normalised = normaliseSkinVariant(selectedValue || cachedSkin || DEFAULT_SKIN);
+  skinSelect.innerHTML = '';
+  for (const option of SKIN_OPTIONS) {
+    if (!AVAILABLE_SKINS.has(option.key)) {
+      continue;
+    }
+    const element = document.createElement('option');
+    element.value = option.key;
+    element.textContent = SKIN_LABEL_LOOKUP.get(option.key) ?? option.key;
+    if (option.key === normalised) {
+      element.selected = true;
+    }
+    skinSelect.appendChild(element);
+  }
+  skinSelect.disabled = false;
+}
+
 function syncSettingsForm() {
   removeStoredKey = false;
   if (!apiKeyInput || !apiKeyHelp) return;
@@ -630,6 +666,7 @@ function syncSettingsForm() {
   }
 
   populateModelOptions(cachedModels, cachedModel);
+  populateSkinOptions(cachedSkin);
   settingsFeedback.textContent = '';
   settingsFeedback.removeAttribute('data-status');
   if (refreshModelsButton) {
@@ -746,12 +783,14 @@ async function saveSettings(event) {
   event?.preventDefault();
   const resolved = activeApiKey();
   const chosenModel = modelSelect?.value ?? '';
+  const chosenSkin = skinSelect?.value ?? DEFAULT_SKIN;
 
   try {
     if (isDesktopShell && desktopAPI) {
       const payload = {
         keyDirective: resolved.directive,
         model: chosenModel,
+        skin: normaliseSkinVariant(chosenSkin),
       };
       if (resolved.directive === 'update' && resolved.value) {
         payload.apiKey = resolved.value;
@@ -760,6 +799,7 @@ async function saveSettings(event) {
       hasStoredApiKey = Boolean(result?.hasApiKey);
       cachedModel = result?.model ?? '';
       cachedModels = Array.isArray(result?.models) ? result.models : cachedModels;
+      cachedSkin = normaliseSkinVariant(result?.skin ?? chosenSkin);
     } else {
       if (resolved.directive === 'update' && resolved.value) {
         cachedApiKey = resolved.value;
@@ -769,8 +809,11 @@ async function saveSettings(event) {
         hasStoredApiKey = false;
       }
       cachedModel = chosenModel;
+      cachedSkin = normaliseSkinVariant(chosenSkin);
       await persistSettings();
     }
+
+    applySkinVariant(cachedSkin);
 
     settingsFeedback.textContent = 'Settings saved';
     settingsFeedback.removeAttribute('data-status');

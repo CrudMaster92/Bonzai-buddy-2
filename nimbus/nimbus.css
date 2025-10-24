@@ -188,6 +188,64 @@ body {
   --skin-buddy-face-offset-y: 0px;
 }
 
+.nimbus-shell[data-skin='robot-overdrive'] {
+  --skin-buddy-glow: radial-gradient(
+    circle at 50% 34%,
+    rgba(248, 250, 255, 0.92),
+    rgba(125, 211, 252, 0.32) 46%,
+    rgba(15, 23, 42, 0.7) 100%
+  );
+  --skin-buddy-glow-opacity: 0.82;
+  --skin-buddy-glow-inset: 40px 30px 14px;
+  --skin-buddy-glow-radius: 48% 52% 46% 54% / 60% 58% 46% 52%;
+  --skin-buddy-body-bg: linear-gradient(
+    168deg,
+    #0f172a 0%,
+    #1e293b 30%,
+    #334155 64%,
+    #38bdf8 100%
+  );
+  --skin-buddy-body-shadow: 0 30px 68px rgba(8, 16, 32, 0.58),
+    inset 0 -18px 30px rgba(14, 165, 233, 0.45);
+  --skin-buddy-body-inset: 14px 4px 24px;
+  --skin-buddy-body-radius: 56% 44% 48% 52% / 68% 54% 46% 50%;
+  --skin-buddy-highlight: radial-gradient(
+    circle at 52% 30%,
+    rgba(248, 250, 255, 0.78),
+    rgba(186, 230, 253, 0.4) 44%,
+    rgba(56, 189, 248, 0.18) 76%,
+    transparent 100%
+  );
+  --skin-buddy-highlight-inset: 22px 28px 52px;
+  --skin-buddy-highlight-radius: 50% 50% 58% 48% / 60% 48% 52% 46%;
+  --skin-eye-color: rgba(248, 250, 252, 0.95);
+  --skin-eye-highlight: rgba(56, 189, 248, 0.6);
+  --skin-cheek-color: rgba(59, 130, 246, 0.35);
+  --skin-mouth-color: #38bdf8;
+  --skin-mouth-shadow: drop-shadow(0 7px 6px rgba(14, 165, 233, 0.45));
+  --skin-chat-toggle-bg: radial-gradient(
+    circle at 36% 32%,
+    rgba(248, 250, 255, 0.9),
+    rgba(148, 163, 184, 0.9) 58%,
+    rgba(59, 130, 246, 0.88) 100%
+  );
+  --skin-chat-toggle-shadow: 0 19px 28px rgba(30, 64, 175, 0.42);
+  --skin-chat-toggle-shadow-hover: 0 24px 32px rgba(37, 99, 235, 0.5);
+  --skin-voice-toggle-bg: radial-gradient(
+    circle at 64% 34%,
+    rgba(248, 250, 255, 0.92),
+    rgba(56, 189, 248, 0.85) 52%,
+    rgba(14, 165, 233, 0.88) 100%
+  );
+  --skin-voice-toggle-shadow: 0 17px 26px rgba(12, 74, 110, 0.45);
+  --skin-voice-toggle-shadow-hover: 0 22px 30px rgba(8, 126, 164, 0.52);
+  --skin-voice-ring-color: rgba(148, 163, 184, 0.78);
+  --skin-voice-mouth-accent: #38bdf8;
+  --skin-buddy-face-width: 92px;
+  --skin-buddy-face-height: 58px;
+  --skin-buddy-face-offset-y: 1px;
+}
+
 .nimbus-shell[data-online="true"] .buddy-body::after {
   opacity: 1;
 }
