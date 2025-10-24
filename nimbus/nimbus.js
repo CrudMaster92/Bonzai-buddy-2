@@ -1,3 +1,5 @@
+import { IDLE_CHAT_MESSAGES, cycleIdleChatMessage } from './buddy-messages.js';
+
 const root = document.getElementById('nimbus-root');
 const chatToggle = document.getElementById('chat-toggle');
 const chatPanel = document.getElementById('chat-panel');
@@ -198,6 +200,10 @@ let conversationHistory = [{ role: 'system', content: SYSTEM_MESSAGE }];
 let isSending = false;
 let removeStoredKey = false;
 let chatPanelPosition = null;
+let idleMessageTimerId = null;
+let idleMessageIndex = 0;
+
+const IDLE_MESSAGE_INTERVAL_MS = 45000;
 let chatDragPointerId = null;
 let chatDragOffset = { x: 0, y: 0 };
 let voiceSession = {
@@ -330,6 +336,48 @@ function appendMessage(role, content) {
     playNimbusSound('message-receive');
   }
   return bubble;
+}
+
+function isChatPanelOpen() {
+  return Boolean(chatPanel) && !chatPanel.hasAttribute('hidden');
+}
+
+function getNextIdleMessage() {
+  const { message, nextIndex } = cycleIdleChatMessage(idleMessageIndex);
+  idleMessageIndex = nextIndex;
+  return message;
+}
+
+function queueIdleMessageTick() {
+  if (typeof window === 'undefined') return;
+  if (idleMessageTimerId) {
+    window.clearTimeout(idleMessageTimerId);
+  }
+  idleMessageTimerId = window.setTimeout(handleIdleMessageTick, IDLE_MESSAGE_INTERVAL_MS);
+}
+
+function handleIdleMessageTick() {
+  idleMessageTimerId = null;
+  if (isChatPanelOpen()) {
+    queueIdleMessageTick();
+    return;
+  }
+
+  if (!Array.isArray(IDLE_CHAT_MESSAGES) || IDLE_CHAT_MESSAGES.length === 0) {
+    queueIdleMessageTick();
+    return;
+  }
+
+  const message = getNextIdleMessage();
+  if (message) {
+    appendMessage('assistant', message);
+  }
+
+  queueIdleMessageTick();
+}
+
+function touchIdleMessageClock() {
+  queueIdleMessageTick();
 }
 
 function setStatus(text) {
@@ -1063,6 +1111,8 @@ function toggleChatPanel(forceOpen) {
     chatToggle.focus();
     playNimbusSound('chat-close');
   }
+
+  touchIdleMessageClock();
 }
 
 function autoResizeComposer() {
@@ -1138,4 +1188,5 @@ function greet() {
   updateVoiceToggleAvailability();
   await readPersistedSettings();
   greet();
+  touchIdleMessageClock();
 })();
