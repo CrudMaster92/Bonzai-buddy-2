@@ -54,7 +54,8 @@ CSS variables defined in `nimbus.css`. Add artwork or animation frames to
 `nimbus/assets/` and reference them through the relevant skin rules. Updating the skin
 should not require JavaScript changes.
 
-- Two skins ship by default: `cumulus` (bright daylight) and `aurora-drift` (neon dusk).
+- Four skins ship by default: `cumulus` (bright daylight), `aurora-drift` (neon dusk),
+  `sage-lantern` (verdant lantern glow), and `robot-overdrive` (chrome circuitry with cyan highlights).
 - Use `window.nimbusSkins.list()` in the console to discover available skins, or append
   `?skin=aurora-drift` to the preview URL to try the nocturnal variant.
 - See [docs/skins.md](docs/skins.md) for authoring guidelines and guardrails when adding

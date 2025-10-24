@@ -18,6 +18,7 @@ let settingsCache = {
   apiKey: '',
   model: '',
   models: [],
+  skin: 'cumulus',
 };
 
 function resolveSettingsPath() {
@@ -41,10 +42,11 @@ async function ensureSettingsLoaded() {
       apiKey: typeof parsed.apiKey === 'string' ? parsed.apiKey : '',
       model: typeof parsed.model === 'string' ? parsed.model : '',
       models: Array.isArray(parsed.models) ? parsed.models : [],
+      skin: typeof parsed.skin === 'string' && parsed.skin ? parsed.skin : 'cumulus',
       __loaded: true,
     };
   } catch (error) {
-    settingsCache = { apiKey: '', model: '', models: [], __loaded: true };
+    settingsCache = { apiKey: '', model: '', models: [], skin: 'cumulus', __loaded: true };
     if (error.code !== 'ENOENT') {
       console.warn('Nimbus desktop could not read settings file', error);
     }
@@ -58,6 +60,7 @@ async function persistSettingsCache() {
     apiKey: settingsCache.apiKey,
     model: settingsCache.model,
     models: settingsCache.models,
+    skin: settingsCache.skin,
   };
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, JSON.stringify(payload, null, 2), 'utf8');
@@ -296,6 +299,7 @@ ipcMain.handle('settings:load', async () => {
     hasApiKey: Boolean(settings.apiKey),
     model: settings.model,
     models: settings.models,
+    skin: settings.skin,
   };
 });
 
@@ -310,6 +314,9 @@ ipcMain.handle('settings:save', async (_event, payload = {}) => {
   if (typeof payload.model === 'string') {
     settings.model = payload.model;
   }
+  if (typeof payload.skin === 'string') {
+    settings.skin = payload.skin;
+  }
   if (!settings.apiKey) {
     settings.models = [];
   }
@@ -318,6 +325,7 @@ ipcMain.handle('settings:save', async (_event, payload = {}) => {
     hasApiKey: Boolean(settings.apiKey),
     model: settings.model,
     models: settings.models,
+    skin: settings.skin,
   };
 });
 
