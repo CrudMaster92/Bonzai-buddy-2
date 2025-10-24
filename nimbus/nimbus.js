@@ -9,6 +9,8 @@ const statusRegion = document.getElementById('nimbus-status');
 const chatStatusText = document.querySelector('[data-chat-status]');
 const buddy = document.querySelector('.buddy');
 const chatHeader = document.querySelector('.chat-header');
+const voiceToggle = document.getElementById('voice-toggle');
+const voiceAudio = document.getElementById('voice-audio');
 
 if (root && !root.hasAttribute('data-chat-open')) {
   root.setAttribute('data-chat-open', 'false');
@@ -37,8 +39,11 @@ const STORAGE_KEYS = {
 
 const OPENAI_MODELS_ENDPOINT = 'https://api.openai.com/v1/models';
 const OPENAI_RESPONSES_ENDPOINT = 'https://api.openai.com/v1/responses';
+const OPENAI_REALTIME_ENDPOINT = 'https://api.openai.com/v1/realtime';
 const SYSTEM_MESSAGE =
   'You are Nimbus, a playful desktop companion. Keep answers friendly, brief, and helpful.';
+const REALTIME_MODEL_FALLBACK = 'gpt-4o-realtime';
+const REALTIME_VOICE_DEFAULT = 'alloy';
 
 let hasStoredApiKey = false;
 let cachedApiKey = '';
@@ -50,6 +55,12 @@ let removeStoredKey = false;
 let chatPanelPosition = null;
 let chatDragPointerId = null;
 let chatDragOffset = { x: 0, y: 0 };
+let voiceSession = {
+  pc: null,
+  localStream: null,
+  remoteStream: null,
+};
+let voiceState = 'idle';
 
 function clampChatPanelPosition(left, top, rect) {
   if (!chatPanel) return { left, top };
@@ -203,10 +214,239 @@ function setComposerBusy(state) {
   }
 }
 
+function updateVoiceToggleAvailability() {
+  if (!voiceToggle) return;
+  const online = root?.dataset.online === 'true';
+  if (voiceState === 'active') {
+    voiceToggle.disabled = false;
+    return;
+  }
+  if (voiceState === 'connecting') {
+    voiceToggle.disabled = true;
+    return;
+  }
+  voiceToggle.disabled = !online;
+}
+
+function setVoiceState(state, options = {}) {
+  voiceState = state;
+  if (root) {
+    if (state === 'idle' || state === 'error') {
+      root.removeAttribute('data-voice-state');
+      if (state === 'error') {
+        root.dataset.voiceState = 'error';
+      }
+    } else {
+      root.dataset.voiceState = state;
+    }
+  }
+
+  if (voiceToggle) {
+    voiceToggle.dataset.state = state;
+    voiceToggle.setAttribute('aria-pressed', state === 'active' ? 'true' : 'false');
+    const label = voiceToggle.querySelector('.sr-only');
+    if (label) {
+      label.textContent = state === 'active'
+        ? 'Stop real-time voice chat with Nimbus'
+        : 'Start real-time voice chat with Nimbus';
+    }
+  }
+
+  updateVoiceToggleAvailability();
+
+  if (options.announce) {
+    setStatus(options.announce);
+  }
+}
+
+function cleanupVoiceSession() {
+  if (voiceSession.pc) {
+    try {
+      voiceSession.pc.close();
+    } catch (error) {
+      console.warn('Error closing voice peer connection', error);
+    }
+  }
+  if (voiceSession.localStream) {
+    for (const track of voiceSession.localStream.getTracks()) {
+      try {
+        track.stop();
+      } catch (error) {
+        console.warn('Error stopping microphone track', error);
+      }
+    }
+  }
+  if (voiceAudio) {
+    try {
+      voiceAudio.srcObject = null;
+    } catch (error) {
+      console.warn('Unable to release audio element', error);
+    }
+  }
+  voiceSession = { pc: null, localStream: null, remoteStream: null };
+}
+
+function resolveRealtimeModel() {
+  if (cachedModel && /realtime/i.test(cachedModel)) {
+    return cachedModel;
+  }
+  const realtimeOption = cachedModels.find((model) => /realtime/i.test(model));
+  if (realtimeOption) {
+    return realtimeOption;
+  }
+  return REALTIME_MODEL_FALLBACK;
+}
+
+async function negotiateVoiceSession({ sdp, model, voice }) {
+  if (!sdp) {
+    throw new Error('Missing SDP offer for voice chat.');
+  }
+
+  if (isDesktopShell && typeof desktopAPI?.negotiateVoiceSession === 'function') {
+    const result = await desktopAPI.negotiateVoiceSession({ sdp, model, voice });
+    if (!result || typeof result.answer !== 'string') {
+      throw new Error('Nimbus could not negotiate a voice session.');
+    }
+    return result.answer;
+  }
+
+  const key = cachedApiKey;
+  if (!key) {
+    throw new Error('Add an API key in settings before starting voice chat.');
+  }
+
+  const endpoint = `${OPENAI_REALTIME_ENDPOINT}?model=${encodeURIComponent(model)}`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/sdp',
+      'OpenAI-Beta': 'realtime=v1',
+      'OpenAI-Session-Config': JSON.stringify({ voice, modalities: ['audio'] }),
+    },
+    body: sdp,
+  });
+
+  if (!response.ok) {
+    throw new Error('OpenAI could not establish a realtime session.');
+  }
+
+  return response.text();
+}
+
+function stopVoiceChat(options = {}) {
+  cleanupVoiceSession();
+  setVoiceState('idle');
+  if (!options.silent) {
+    const reason = options.reason || 'Voice chat ended.';
+    setStatus(reason);
+  }
+}
+
+async function startVoiceChat() {
+  if (voiceState === 'connecting') {
+    return;
+  }
+
+  if (voiceState === 'active') {
+    stopVoiceChat();
+    return;
+  }
+
+  if (!navigator?.mediaDevices?.getUserMedia) {
+    setVoiceState('error');
+    setStatus('Voice chat is not supported in this environment.');
+    window.setTimeout(() => setVoiceState('idle'), 2000);
+    return;
+  }
+
+  setVoiceState('connecting');
+
+  let localStream;
+  let pc;
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+      },
+    });
+
+    pc = new RTCPeerConnection();
+    const remoteStream = new MediaStream();
+    voiceSession = { pc, localStream, remoteStream };
+
+    for (const track of localStream.getTracks()) {
+      pc.addTrack(track, localStream);
+    }
+
+    pc.addEventListener('track', (event) => {
+      const [stream] = event.streams;
+      const incoming = stream ?? remoteStream;
+      if (!stream) {
+        remoteStream.addTrack(event.track);
+      }
+      voiceSession.remoteStream = incoming;
+      if (voiceAudio) {
+        voiceAudio.srcObject = incoming;
+        const playPromise = voiceAudio.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(() => {});
+        }
+      }
+    });
+
+    pc.addEventListener('connectionstatechange', () => {
+      if (voiceSession.pc !== pc) return;
+      const state = pc.connectionState;
+      if (state === 'connected') {
+        setVoiceState('active', { announce: 'Voice chat connected.' });
+      } else if (state === 'failed' || state === 'disconnected' || state === 'closed') {
+        stopVoiceChat({ reason: 'Voice chat disconnected.' });
+      }
+    });
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    const model = resolveRealtimeModel();
+    const voice = REALTIME_VOICE_DEFAULT;
+    const answerSdp = await negotiateVoiceSession({ sdp: offer.sdp, model, voice });
+    await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+
+    setVoiceState('active', { announce: 'Nimbus is listening.' });
+  } catch (error) {
+    console.error('Nimbus voice chat error', error);
+    stopVoiceChat({ reason: error.message || 'Nimbus could not start voice chat.', silent: true });
+    setVoiceState('error');
+    const message = error?.message || 'Nimbus could not start voice chat.';
+    setStatus(message);
+    window.setTimeout(() => {
+      if (voiceState === 'error') {
+        setVoiceState('idle');
+      }
+    }, 2200);
+  }
+}
+
+function handleVoiceToggle() {
+  if (voiceState === 'active' || voiceState === 'connecting') {
+    stopVoiceChat();
+  } else {
+    startVoiceChat();
+  }
+}
+
 function updateOnlineState() {
   if (!root) return;
   const hasKey = hasStoredApiKey || Boolean(cachedApiKey);
-  root.dataset.online = hasKey && Boolean(cachedModel) ? 'true' : 'false';
+  const online = hasKey && Boolean(cachedModel);
+  root.dataset.online = online ? 'true' : 'false';
+  if (!online && (voiceState === 'active' || voiceState === 'connecting')) {
+    stopVoiceChat({ reason: 'Voice chat stopped because Nimbus went offline.' });
+  }
+  updateVoiceToggleAvailability();
 }
 
 async function readPersistedSettings() {
@@ -632,6 +872,7 @@ function autoResizeComposer() {
 function installEventListeners() {
   chatToggle?.addEventListener('click', () => toggleChatPanel());
   chatClose?.addEventListener('click', () => toggleChatPanel(false));
+  voiceToggle?.addEventListener('click', handleVoiceToggle);
   composerInput?.addEventListener('input', autoResizeComposer);
   composerForm?.addEventListener('submit', handleComposerSubmit);
   chatHeader?.addEventListener('pointerdown', startChatDrag);
@@ -671,9 +912,13 @@ function installEventListeners() {
   });
 
   window.addEventListener('resize', handleWindowResize);
+  window.addEventListener('beforeunload', () => stopVoiceChat({ silent: true }));
 
   if (desktopAPI?.onSettingsOpen) {
     desktopAPI.onSettingsOpen(() => {
+      if (voiceState === 'active' || voiceState === 'connecting') {
+        stopVoiceChat({ reason: 'Voice chat paused while settings are open.' });
+      }
       openSettings();
       toggleChatPanel(false);
     });
@@ -688,6 +933,7 @@ function greet() {
 
 (async function bootstrap() {
   installEventListeners();
+  updateVoiceToggleAvailability();
   await readPersistedSettings();
   greet();
 })();

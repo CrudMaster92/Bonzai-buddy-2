@@ -7,6 +7,9 @@ const REGISTRY_FILE = path.resolve(__dirname, '..', 'applets.json');
 const NIMBUS_ROOT = path.resolve(__dirname, '..', 'nimbus', 'index.html');
 const RESPONSES_ENDPOINT = 'https://api.openai.com/v1/responses';
 const MODELS_ENDPOINT = 'https://api.openai.com/v1/models';
+const REALTIME_ENDPOINT = 'https://api.openai.com/v1/realtime';
+const REALTIME_MODEL_FALLBACK = 'gpt-4o-realtime';
+const REALTIME_VOICE_DEFAULT = 'alloy';
 
 let tray = null;
 let windowInstance = null;
@@ -215,6 +218,39 @@ async function callOpenAI(endpoint, key, options) {
   return response.json();
 }
 
+async function negotiateRealtimeAnswer({ key, sdp, model, voice }) {
+  const targetModel = typeof model === 'string' && model ? model : REALTIME_MODEL_FALLBACK;
+  const chosenVoice = typeof voice === 'string' && voice ? voice : REALTIME_VOICE_DEFAULT;
+  const endpoint = `${REALTIME_ENDPOINT}?model=${encodeURIComponent(targetModel)}`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/sdp',
+      'OpenAI-Beta': 'realtime=v1',
+      'OpenAI-Session-Config': JSON.stringify({
+        model: targetModel,
+        voice: chosenVoice,
+        modalities: ['audio'],
+      }),
+    },
+    body: sdp,
+  });
+
+  if (!response.ok) {
+    let detail = '';
+    try {
+      detail = await response.text();
+    } catch (error) {
+      detail = '';
+    }
+    const message = detail ? `OpenAI realtime error: ${detail}` : `OpenAI responded with ${response.status}`;
+    throw new Error(message);
+  }
+
+  return response.text();
+}
+
 function extractTextFromResponse(payload) {
   if (!payload || typeof payload !== 'object') return '';
 
@@ -350,6 +386,35 @@ ipcMain.handle('chat:send', async (_event, payload = {}) => {
   }
 
   return { reply };
+});
+
+ipcMain.handle('voice:negotiate', async (_event, payload = {}) => {
+  const settings = await ensureSettingsLoaded();
+  const key = settings.apiKey;
+  if (!key) {
+    throw new Error('Add an API key in settings before starting voice chat.');
+  }
+
+  const sdp = typeof payload.sdp === 'string' ? payload.sdp : '';
+  if (!sdp) {
+    throw new Error('Nimbus needs an SDP offer to start voice chat.');
+  }
+
+  const modelCandidate = typeof payload.model === 'string' && payload.model
+    ? payload.model
+    : settings.model;
+  const voiceCandidate = typeof payload.voice === 'string' && payload.voice
+    ? payload.voice
+    : REALTIME_VOICE_DEFAULT;
+
+  const answer = await negotiateRealtimeAnswer({
+    key,
+    sdp,
+    model: modelCandidate,
+    voice: voiceCandidate,
+  });
+
+  return { answer };
 });
 
 ipcMain.handle('registry:load', async () => {
