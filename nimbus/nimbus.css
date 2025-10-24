@@ -509,6 +509,47 @@ body {
   --skin-buddy-face-offset-y: 0px;
 }
 
+.nimbus-shell[data-skin='forerunner-oracle'] {
+  --skin-buddy-glow: radial-gradient(
+    120% 120% at 50% 35%,
+    rgba(59, 130, 246, 0.85) 0%,
+    rgba(15, 23, 42, 0.2) 65%,
+    rgba(8, 47, 73, 0) 100%
+  );
+  --skin-buddy-glow-opacity: 0.82;
+  --skin-buddy-glow-inset: 42px 28px 16px;
+  --skin-buddy-glow-radius: 52% 48% 50% 50% / 60% 56% 44% 48%;
+  --skin-buddy-body-bg: linear-gradient(165deg, #0f172a 0%, #1e3a8a 46%, #38bdf8 100%);
+  --skin-buddy-body-shadow: 0 30px 68px rgba(15, 23, 42, 0.42),
+    inset 0 0 28px rgba(59, 130, 246, 0.45);
+  --skin-buddy-body-inset: 14px 4px 26px;
+  --skin-buddy-body-radius: 58% 44% 48% 54% / 68% 56% 46% 52%;
+  --skin-buddy-highlight: radial-gradient(
+    60% 60% at 52% 32%,
+    rgba(191, 219, 254, 0.92) 0%,
+    rgba(59, 130, 246, 0.55) 55%,
+    rgba(15, 118, 110, 0) 100%
+  );
+  --skin-buddy-highlight-inset: 18px 26px 48px;
+  --skin-buddy-highlight-radius: 46% 52% 60% 50% / 60% 48% 50% 46%;
+  --skin-eye-color: rgba(226, 232, 240, 0.95);
+  --skin-eye-highlight: rgba(125, 211, 252, 0.8);
+  --skin-cheek-color: rgba(94, 234, 212, 0.42);
+  --skin-mouth-color: #22d3ee;
+  --skin-mouth-shadow: drop-shadow(0 7px 6px rgba(56, 189, 248, 0.32));
+  --skin-chat-toggle-bg: linear-gradient(140deg, #38bdf8 0%, #1d4ed8 100%);
+  --skin-chat-toggle-shadow: 0 18px 26px rgba(30, 64, 175, 0.38);
+  --skin-chat-toggle-shadow-hover: 0 24px 30px rgba(56, 189, 248, 0.46);
+  --skin-voice-toggle-bg: linear-gradient(145deg, #f59e0b 0%, #f97316 68%, #facc15 100%);
+  --skin-voice-toggle-shadow: 0 18px 26px rgba(217, 119, 6, 0.36);
+  --skin-voice-toggle-shadow-hover: 0 24px 32px rgba(245, 158, 11, 0.46);
+  --skin-voice-ring-color: rgba(248, 250, 252, 0.75);
+  --skin-voice-mouth-accent: #fbbf24;
+  --skin-buddy-face-width: 92px;
+  --skin-buddy-face-height: 60px;
+  --skin-buddy-face-offset-y: 1px;
+}
+
 .nimbus-shell[data-skin='cubic-cadet'] .buddy-body {
   z-index: 2;
 }
