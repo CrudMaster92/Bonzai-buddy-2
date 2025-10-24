@@ -7,13 +7,30 @@
     <link rel="stylesheet" href="./nimbus.css" />
   </head>
   <body>
-    <div id="nimbus-root" class="nimbus-shell" data-skin="default">
-      <header class="shell-header">
-        <div class="buddy-avatar" role="img" aria-label="Nimbus buddy avatar"></div>
-        <div class="shell-header-copy">
-          <h1 class="shell-title">Nimbus</h1>
-          <p class="shell-subtitle">ChatGPT link active — manage keys from the tray.</p>
+    <div id="nimbus-root" class="nimbus-shell" data-skin="default" data-online="false">
+      <div class="nimbus-character" role="img" aria-label="Nimbus, a friendly cloud buddy">
+        <div class="cloud cloud-layer cloud-layer-back"></div>
+        <div class="cloud cloud-core">
+          <div class="cloud-face">
+            <span class="cloud-eye cloud-eye-left" aria-hidden="true"></span>
+            <span class="cloud-eye cloud-eye-right" aria-hidden="true"></span>
+            <span class="cloud-mouth" aria-hidden="true"></span>
+          </div>
         </div>
+        <div class="cloud cloud-layer cloud-layer-front"></div>
+        <button
+          id="composer-toggle"
+          class="character-action"
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="composer-popover"
+        >
+          <span class="sr-only">Open Nimbus message composer</span>
+        </button>
+      </div>
+
+      <div class="shell-controls">
         <div class="tray" data-open="false">
           <button
             class="tray-toggle"
@@ -21,77 +38,99 @@
             aria-haspopup="true"
             aria-expanded="false"
             aria-controls="nimbus-tray-menu"
-            title="Nimbus taskbar"
-            aria-label="Open Nimbus taskbar menu"
+            aria-label="Open Nimbus tray"
           >
-            ☰
+            <span aria-hidden="true"></span>
+            <span class="sr-only">Open Nimbus tray</span>
           </button>
-          <nav id="nimbus-tray-menu" class="tray-menu" aria-label="Nimbus tray menu" hidden>
+          <nav id="nimbus-tray-menu" class="tray-menu" aria-label="Nimbus tray" hidden>
             <ul>
               <li>
-                <button type="button" class="tray-action" data-action="open-settings">
-                  Open Settings
+                <button type="button" class="tray-action" data-action="open-settings" aria-label="Open settings">
+                  <span aria-hidden="true"></span>
+                  <span class="sr-only">Open settings</span>
                 </button>
               </li>
               <li>
-                <button type="button" class="tray-action" data-action="collapse">
-                  Collapse Nimbus
+                <button type="button" class="tray-action" data-action="cycle-skin" aria-label="Change skin">
+                  <span aria-hidden="true"></span>
+                  <span class="sr-only">Change skin</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="tray-action" data-action="collapse" aria-label="Collapse Nimbus">
+                  <span aria-hidden="true"></span>
+                  <span class="sr-only">Collapse Nimbus</span>
                 </button>
               </li>
             </ul>
           </nav>
         </div>
-      </header>
-      <main class="chat-window" aria-label="Nimbus chat window">
-        <div class="chat-intro" role="note">
-          Ask anything or type <kbd>@</kbd> to open an applet inline.
-        </div>
-        <div id="message-log" class="message-log" role="log" aria-live="polite"></div>
-        <form id="composer-form" class="composer" autocomplete="off">
-          <label class="sr-only" for="composer-input">Message Nimbus</label>
-          <textarea
-            id="composer-input"
-            name="message"
-            rows="1"
-            placeholder="Send a message..."
-            aria-label="Message Nimbus"
-            spellcheck="true"
-          ></textarea>
-          <div id="mention-suggestions" class="mention-suggestions" role="listbox" hidden></div>
-          <div class="composer-actions">
-            <span class="composer-hint">Mentions trigger applets. Settings live in the tray.</span>
-            <button type="submit" class="composer-send">Send</button>
+      </div>
+
+      <section
+        id="composer-popover"
+        class="composer-popover"
+        role="dialog"
+        aria-modal="false"
+        aria-label="Nimbus chat composer"
+        hidden
+      >
+        <div class="popover-inner">
+          <header class="popover-header">
+            <button
+              id="composer-close"
+              class="popover-close"
+              type="button"
+              aria-label="Close composer"
+            ></button>
+          </header>
+          <div class="popover-body">
+            <div id="message-log" class="message-log" role="log" aria-live="polite"></div>
+            <form id="composer-form" class="composer" autocomplete="off">
+              <label class="sr-only" for="composer-input">Message Nimbus</label>
+              <textarea
+                id="composer-input"
+                name="message"
+                rows="1"
+                aria-label="Message Nimbus"
+                spellcheck="true"
+              ></textarea>
+              <div id="mention-suggestions" class="mention-suggestions" role="listbox" hidden></div>
+              <div class="composer-actions">
+                <button type="submit" class="composer-send" aria-label="Send message"></button>
+              </div>
+            </form>
           </div>
-        </form>
-      </main>
+        </div>
+      </section>
+
       <section id="applet-host" class="applet-host" hidden aria-live="polite">
         <header class="applet-host-header">
-          <div>
-            <span class="applet-host-label">Applet</span>
-            <h2 id="applet-title" class="applet-title"></h2>
+          <div class="applet-title-group">
+            <span class="applet-host-label sr-only">Applet</span>
+            <h2 id="applet-title" class="applet-title" aria-live="polite"></h2>
           </div>
-          <button id="applet-close" type="button" class="applet-close" aria-label="Close applet">
-            Close
-          </button>
+          <button id="applet-close" type="button" class="applet-close" aria-label="Close applet"></button>
         </header>
         <div id="applet-frame-wrapper" class="applet-frame-wrapper"></div>
       </section>
     </div>
+
     <div id="settings-overlay" class="settings-overlay" hidden>
       <div class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <header class="settings-header">
-          <h2 id="settings-title">Nimbus Settings</h2>
-          <button id="settings-close" type="button" class="settings-close" aria-label="Close settings">×</button>
+          <h2 id="settings-title" class="sr-only">Nimbus Settings</h2>
+          <button id="settings-close" type="button" class="settings-close" aria-label="Close settings"></button>
         </header>
         <section class="settings-section" aria-labelledby="api-settings-title">
-          <h3 id="api-settings-title">OpenAI connection</h3>
-          <p class="settings-description">
-            Store your personal API key to chat with the latest OpenAI models. Keys are saved to this
-            device only.
+          <h3 id="api-settings-title" class="sr-only">OpenAI connection</h3>
+          <p class="settings-description sr-only">
+            Store your personal API key to chat with the latest OpenAI models. Keys are saved to this device only.
           </p>
           <form id="settings-form" class="settings-form">
             <div class="form-field">
-              <label for="settings-api-key">API key</label>
+              <label class="sr-only" for="settings-api-key">API key</label>
               <div class="form-field-inline">
                 <input
                   id="settings-api-key"
@@ -99,28 +138,52 @@
                   type="password"
                   autocomplete="off"
                   spellcheck="false"
-                  placeholder="sk-..."
+                  placeholder=""
                   aria-describedby="api-key-help"
                 />
-                <button id="api-key-toggle" type="button" class="secondary">Show</button>
+                <button
+                  id="api-key-toggle"
+                  type="button"
+                  class="secondary"
+                  data-icon="eye"
+                  aria-label="Reveal API key"
+                ></button>
               </div>
-              <p id="api-key-help" class="field-help">Only enter keys from accounts you trust.</p>
+              <p id="api-key-help" class="field-help sr-only">Only enter keys from accounts you trust.</p>
             </div>
             <div class="form-field">
-              <label for="settings-model">Model</label>
+              <label class="sr-only" for="settings-model">Model</label>
               <div class="form-field-inline">
-                <select id="settings-model" name="model" disabled>
-                  <option value="" disabled selected>Enter an API key to load models</option>
+                <select id="settings-model" name="model" disabled aria-label="Select model">
+                  <option value="" disabled selected></option>
                 </select>
-                <button id="refresh-models" type="button" class="secondary" disabled>Refresh</button>
+                <button
+                  id="refresh-models"
+                  type="button"
+                  class="secondary"
+                  data-icon="refresh"
+                  disabled
+                  aria-label="Refresh models"
+                ></button>
               </div>
-              <p class="field-help">Nimbus uses the OpenAI Responses API with GPT-5-ready models.</p>
+              <p class="field-help sr-only">Nimbus uses the OpenAI Responses API with GPT-5-ready models.</p>
             </div>
             <div class="form-actions">
-              <button type="submit" class="primary">Save</button>
-              <button id="settings-cancel" type="button" class="secondary">Cancel</button>
+              <button type="submit" class="primary" data-icon="check" aria-label="Save settings"></button>
+              <button
+                id="settings-cancel"
+                type="button"
+                class="secondary"
+                data-icon="back"
+                aria-label="Cancel"
+              ></button>
             </div>
-            <output id="settings-feedback" class="settings-feedback" role="status" aria-live="polite"></output>
+            <output
+              id="settings-feedback"
+              class="settings-feedback sr-only"
+              role="status"
+              aria-live="polite"
+            ></output>
           </form>
         </section>
       </div>
