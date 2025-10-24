@@ -1,8 +1,8 @@
 summary: |
   Nimbus Buddy is the chat-forward desktop companion that now pairs a conversation view
   with an inline applet launcher and sandboxed host panel. The shell is draggable,
-  minimisable, and responsible for orchestrating ChatGPT API configuration through the
-  tray menu.
+  minimisable, responsible for orchestrating ChatGPT API configuration through the tray
+  menu, and exposes a documented skin system in `docs/skins.md`.
 objectives:
   - Keep the Nimbus shell lightweight and dependency-free (vanilla HTML, CSS, JS).
   - Load applet metadata dynamically from the root registry without manual wiring.

@@ -8,7 +8,9 @@ applets or manipulates Nimbus should respect the following guardrails:
   Everything runs through sandboxed iframes, launched on demand.
 - **Skin system:** Visual customisations must be implemented via data attributes,
   CSS variables, and assets within `./assets`. Adding a new skin should not require
-  JavaScript rewrites; aim for configuration-driven swaps.
+  JavaScript rewrites; aim for configuration-driven swaps. Register new skins in
+  `AVAILABLE_SKINS` inside `nimbus.js`, scope overrides under
+  `.nimbus-shell[data-skin='<key>']`, and document the palette in `docs/skins.md`.
 - **UX tone:** Keep Nimbus subtle, friendly, and low-contrast. Avoid loud gradients,
   glassmorphism clones, or nostalgic purple palettes. Nimbus should feel at home on
   modern desktops without screaming for attention.

@@ -12,6 +12,69 @@ const chatHeader = document.querySelector('.chat-header');
 const voiceToggle = document.getElementById('voice-toggle');
 const voiceAudio = document.getElementById('voice-audio');
 
+const DEFAULT_SKIN = root?.dataset.skin || 'cumulus';
+const AVAILABLE_SKINS = new Set(['cumulus', 'aurora-drift']);
+const SKIN_STORAGE_KEY = 'nimbus.shell.skin';
+
+function normaliseSkinVariant(value) {
+  if (!value) return DEFAULT_SKIN;
+  return AVAILABLE_SKINS.has(value) ? value : DEFAULT_SKIN;
+}
+
+function applySkinVariant(value, { persist = true } = {}) {
+  if (!root) return DEFAULT_SKIN;
+  const next = normaliseSkinVariant(value);
+  root.dataset.skin = next;
+  if (persist) {
+    try {
+      window.localStorage?.setItem(SKIN_STORAGE_KEY, next);
+    } catch (error) {
+      console.warn('Nimbus skin could not be stored', error);
+    }
+  }
+  return next;
+}
+
+function hydrateSkinVariant() {
+  if (!root) return;
+  let fromQuery = null;
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    fromQuery = params.get('skin');
+  } catch (error) {
+    console.warn('Nimbus skin query parsing failed', error);
+  }
+
+  if (fromQuery) {
+    applySkinVariant(fromQuery);
+    return;
+  }
+
+  let storedSkin = null;
+  try {
+    storedSkin = window.localStorage?.getItem(SKIN_STORAGE_KEY) ?? null;
+  } catch (error) {
+    console.warn('Nimbus skin read failed', error);
+  }
+
+  if (storedSkin) {
+    applySkinVariant(storedSkin, { persist: false });
+  } else {
+    applySkinVariant(DEFAULT_SKIN, { persist: false });
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.nimbusSkins = {
+    apply: (name, options) => applySkinVariant(name, options),
+    list: () => Array.from(AVAILABLE_SKINS),
+    current: () => root?.dataset.skin ?? DEFAULT_SKIN,
+  };
+}
+
+hydrateSkinVariant();
+
 if (root && !root.hasAttribute('data-chat-open')) {
   root.setAttribute('data-chat-open', 'false');
 }
