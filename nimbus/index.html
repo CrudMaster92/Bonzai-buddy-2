@@ -41,8 +41,15 @@
         hidden
       >
         <header class="chat-header">
-          <h2 class="chat-title">Nimbus</h2>
-          <button id="chat-close" type="button" class="chat-close" aria-label="Close chat"></button>
+          <h2 class="chat-title sr-only" id="chat-title">Chat with Nimbus</h2>
+          <div class="chat-header-meta" aria-hidden="true">
+            <span class="chat-status-indicator"></span>
+            <span class="chat-status-text" data-chat-status>Ready</span>
+          </div>
+          <button id="chat-close" type="button" class="chat-close" aria-label="Close chat">
+            <span aria-hidden="true">&times;</span>
+            <span class="sr-only">Close</span>
+          </button>
         </header>
         <div id="message-log" class="message-log" role="log" aria-live="polite"></div>
         <form id="composer-form" class="composer" autocomplete="off">
@@ -55,7 +62,10 @@
             aria-label="Message Nimbus"
           ></textarea>
           <div class="composer-actions">
-            <button type="submit" class="composer-send" aria-label="Send message"></button>
+            <button type="submit" class="composer-send" aria-label="Send message">
+              <span class="sr-only">Send</span>
+              <span class="composer-send-icon" aria-hidden="true"></span>
+            </button>
           </div>
         </form>
       </section>
@@ -65,7 +75,10 @@
       <div class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <header class="settings-header">
           <h2 id="settings-title">Nimbus settings</h2>
-          <button id="settings-close" type="button" class="settings-close" aria-label="Close settings"></button>
+          <button id="settings-close" type="button" class="settings-close" aria-label="Close settings">
+            <span aria-hidden="true">&times;</span>
+            <span class="sr-only">Close</span>
+          </button>
         </header>
         <form id="settings-form" class="settings-form" autocomplete="off">
           <fieldset class="settings-section">
