@@ -30,6 +30,17 @@
           <span class="chat-toggle-icon" aria-hidden="true"></span>
           <span class="sr-only">Open chat with Nimbus</span>
         </button>
+        <button
+          id="voice-toggle"
+          class="voice-toggle"
+          type="button"
+          data-state="idle"
+          aria-pressed="false"
+        >
+          <span class="voice-toggle-ring" aria-hidden="true"></span>
+          <span class="voice-toggle-icon" aria-hidden="true"></span>
+          <span class="sr-only">Start real-time voice chat with Nimbus</span>
+        </button>
       </div>
 
       <section
@@ -137,6 +148,13 @@
     </div>
 
     <span class="sr-only" aria-live="polite" id="nimbus-status"></span>
+    <audio
+      id="voice-audio"
+      class="voice-audio"
+      hidden
+      aria-hidden="true"
+      playsinline
+    ></audio>
 
     <script src="./nimbus.js" type="module"></script>
   </body>

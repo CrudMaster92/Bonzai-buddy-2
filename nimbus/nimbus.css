@@ -188,6 +188,78 @@ body {
   background: url('./assets/chat-bubble.svg') center/contain no-repeat;
 }
 
+.voice-toggle {
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  transform: translate(-50%, 88%);
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 0;
+  background: radial-gradient(circle at 60% 30%, #fff, #bfdbfe 78%);
+  box-shadow: 0 16px 22px rgba(29, 78, 216, 0.22);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+.voice-toggle:hover,
+.voice-toggle:focus-visible {
+  transform: translate(-50%, 88%) scale(1.05);
+  box-shadow: 0 20px 26px rgba(29, 78, 216, 0.32);
+  outline: none;
+}
+
+.voice-toggle[disabled] {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.voice-toggle[data-state='connecting'] {
+  pointer-events: none;
+}
+
+.voice-toggle-icon {
+  width: 20px;
+  height: 20px;
+  background: url('./assets/microphone.svg') center/contain no-repeat;
+  position: relative;
+  z-index: 1;
+}
+
+.voice-toggle-ring {
+  position: absolute;
+  inset: 8px;
+  border-radius: 999px;
+  border: 2px solid rgba(37, 99, 235, 0.45);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 180ms ease, transform 300ms ease;
+}
+
+.voice-toggle[data-state='active'] .voice-toggle-ring {
+  opacity: 1;
+  transform: scale(1);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.voice-toggle[data-state='connecting'] .voice-toggle-ring {
+  opacity: 0.75;
+  transform: scale(0.92);
+  animation: pulse 1s linear infinite;
+}
+
+.voice-audio {
+  display: none;
+}
+
+
 .chat-panel {
   position: fixed;
   bottom: calc(2.2rem + 220px);
@@ -545,6 +617,17 @@ body {
 
 .nimbus-shell[data-chat-open='true'] .buddy-mouth {
   animation: chatter 1.4s ease-in-out infinite;
+}
+
+.nimbus-shell[data-voice-state='connecting'] .buddy-mouth,
+.nimbus-shell[data-voice-state='active'] .buddy-mouth {
+  animation: chatter 320ms ease-in-out infinite alternate !important;
+  border-bottom-color: #1d4ed8;
+}
+
+.nimbus-shell[data-voice-state='active'] .buddy-glow {
+  animation-duration: 2.8s;
+  opacity: 0.8;
 }
 
 @keyframes shimmer {

@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   saveSettings: (payload) => ipcRenderer.invoke('settings:save', payload),
   fetchModels: (payload) => ipcRenderer.invoke('openai:fetchModels', payload),
   sendMessage: (payload) => ipcRenderer.invoke('chat:send', payload),
+  negotiateVoiceSession: (payload) => ipcRenderer.invoke('voice:negotiate', payload),
   loadRegistry: () => ipcRenderer.invoke('registry:load'),
   onSettingsOpen: (callback) => {
     if (typeof callback !== 'function') return () => {};
