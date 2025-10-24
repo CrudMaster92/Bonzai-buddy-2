@@ -1,10 +1,12 @@
 const registryPath = '../applets.json';
 
 const root = document.getElementById('nimbus-root');
-const subtitle = document.querySelector('.shell-subtitle');
 const tray = document.querySelector('.tray');
 const trayToggle = document.querySelector('.tray-toggle');
 const trayMenu = document.getElementById('nimbus-tray-menu');
+const composerToggle = document.getElementById('composer-toggle');
+const composerPopover = document.getElementById('composer-popover');
+const composerClose = document.getElementById('composer-close');
 const messageLog = document.getElementById('message-log');
 const composerForm = document.getElementById('composer-form');
 const composerInput = document.getElementById('composer-input');
@@ -30,6 +32,85 @@ const STORAGE_KEYS = {
   model: 'nimbus.openai.model',
   modelsCache: 'nimbus.openai.modelsCache',
 };
+
+const SKIN_STORAGE_KEY = 'nimbus.appearance.skin';
+
+const SKINS = [
+  {
+    id: 'default',
+    label: 'Nimbus Cloud',
+    properties: {},
+  },
+  {
+    id: 'twilight',
+    label: 'Twilight Drift',
+    properties: {
+      '--cloud-base': '#fef6ff',
+      '--cloud-layer': '#fbe8ff',
+      '--cloud-outline': 'rgba(99, 102, 241, 0.45)',
+      '--face-eye': '#312e81',
+      '--face-mouth': '#4338ca',
+      '--action-icon': '#7c3aed',
+      '--action-surface': 'rgba(124, 58, 237, 0.18)',
+      '--action-surface-hover': 'rgba(124, 58, 237, 0.24)',
+      '--tray-surface': 'rgba(76, 29, 149, 0.22)',
+      '--tray-border': 'rgba(244, 215, 255, 0.32)',
+      '--highlight-glow': 'rgba(124, 58, 237, 0.26)',
+    },
+  },
+];
+
+const SKIN_INDEX = new Map(SKINS.map((skin) => [skin.id, skin]));
+
+let activeSkin = root?.dataset.skin ?? 'default';
+const appliedSkinProperties = new Set();
+
+function applySkin(skinId, { persist = true } = {}) {
+  if (!root) return;
+  const skin = SKIN_INDEX.get(skinId) ?? SKIN_INDEX.get('default');
+  if (!skin) return;
+
+  for (const property of appliedSkinProperties) {
+    root.style.removeProperty(property);
+  }
+  appliedSkinProperties.clear();
+
+  const entries = Object.entries(skin.properties ?? {});
+  for (const [property, value] of entries) {
+    root.style.setProperty(property, value);
+    appliedSkinProperties.add(property);
+  }
+
+  root.dataset.skin = skin.id;
+  activeSkin = skin.id;
+
+  if (!persist) return;
+  try {
+    window.localStorage.setItem(SKIN_STORAGE_KEY, skin.id);
+  } catch (error) {
+    console.warn('Unable to persist Nimbus skin preference', error);
+  }
+}
+
+function restoreSkinPreference() {
+  try {
+    const storedSkin = window.localStorage.getItem(SKIN_STORAGE_KEY);
+    if (storedSkin && SKIN_INDEX.has(storedSkin)) {
+      applySkin(storedSkin, { persist: false });
+      return;
+    }
+  } catch (error) {
+    console.warn('Unable to read Nimbus skin preference', error);
+  }
+  applySkin(activeSkin ?? 'default', { persist: false });
+}
+
+function cycleSkin() {
+  const ids = SKINS.map((skin) => skin.id);
+  const currentIndex = ids.indexOf(activeSkin);
+  const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % ids.length;
+  applySkin(ids[nextIndex]);
+}
 
 const OPENAI_MODELS_ENDPOINT = 'https://api.openai.com/v1/models';
 const OPENAI_RESPONSES_ENDPOINT = 'https://api.openai.com/v1/responses';
@@ -105,11 +186,9 @@ function persistSettings() {
   }
 }
 
-function updateSubtitle() {
-  if (!subtitle) return;
-  subtitle.textContent = cachedApiKey
-    ? 'Ready to chat with your OpenAI account.'
-    : 'Add your OpenAI key from the taskbar settings to go online.';
+function updateOnlineState() {
+  if (!root) return;
+  root.dataset.online = cachedApiKey && cachedModel ? 'true' : 'false';
 }
 
 function applyMaskedKey() {
@@ -118,7 +197,8 @@ function applyMaskedKey() {
   apiKeyInput.value = MASKED_KEY_VALUE;
   apiKeyInput.dataset.state = 'masked';
   apiKeyToggle.disabled = false;
-  apiKeyToggle.textContent = 'Show';
+  apiKeyToggle.dataset.visibility = 'hidden';
+  apiKeyToggle.setAttribute('aria-label', 'Reveal API key');
 }
 
 function resetApiKeyField() {
@@ -131,7 +211,8 @@ function resetApiKeyField() {
     apiKeyInput.value = '';
     apiKeyInput.dataset.state = 'empty';
     apiKeyToggle.disabled = true;
-    apiKeyToggle.textContent = 'Show';
+    apiKeyToggle.dataset.visibility = 'hidden';
+    apiKeyToggle.setAttribute('aria-label', 'Reveal API key');
     apiKeyHelp &&
       (apiKeyHelp.textContent = 'Only enter keys from accounts you trust. Nothing is sent until you save.');
   }
@@ -178,12 +259,14 @@ function syncSettingsForm() {
   settingsFeedback && (settingsFeedback.textContent = '');
   if (refreshModelsButton) {
     refreshModelsButton.disabled = !resolveActiveApiKey();
+    setRefreshModelsState(refreshModelsButton.disabled ? 'disabled' : 'idle');
   }
 }
 
 function openSettings() {
   readPersistedSettings();
   syncSettingsForm();
+  closeComposer();
   settingsOverlay?.removeAttribute('hidden');
   window.setTimeout(() => {
     apiKeyInput?.focus();
@@ -215,21 +298,25 @@ function handleApiKeyToggle() {
     apiKeyInput.type = 'text';
     apiKeyInput.value = cachedApiKey;
     apiKeyInput.dataset.state = 'revealed';
-    apiKeyToggle.textContent = 'Hide';
+    apiKeyToggle.dataset.visibility = 'visible';
+    apiKeyToggle.setAttribute('aria-label', 'Hide API key');
     return;
   }
 
   if (cachedApiKey && state === 'revealed' && apiKeyInput.value === cachedApiKey) {
     applyMaskedKey();
+    apiKeyToggle.dataset.visibility = 'hidden';
     return;
   }
 
   if (apiKeyInput.type === 'password') {
     apiKeyInput.type = 'text';
-    apiKeyToggle.textContent = 'Hide';
+    apiKeyToggle.dataset.visibility = 'visible';
+    apiKeyToggle.setAttribute('aria-label', 'Hide API key');
   } else {
     apiKeyInput.type = 'password';
-    apiKeyToggle.textContent = 'Show';
+    apiKeyToggle.dataset.visibility = 'hidden';
+    apiKeyToggle.setAttribute('aria-label', 'Reveal API key');
   }
 }
 
@@ -248,6 +335,44 @@ function handleApiKeyInput() {
 
   if (refreshModelsButton) {
     refreshModelsButton.disabled = !resolveActiveApiKey();
+    setRefreshModelsState(refreshModelsButton.disabled ? 'disabled' : 'idle');
+  }
+}
+
+function setRefreshModelsState(state) {
+  if (!refreshModelsButton) return;
+  refreshModelsButton.dataset.state = state;
+  if (state === 'loading') {
+    refreshModelsButton.setAttribute('aria-label', 'Refreshing models');
+  } else {
+    refreshModelsButton.setAttribute('aria-label', 'Refresh models');
+  }
+}
+
+function isComposerOpen() {
+  return Boolean(composerPopover && !composerPopover.hasAttribute('hidden'));
+}
+
+function openComposer() {
+  if (!composerPopover || !composerToggle) return;
+  if (root?.classList.contains('is-collapsed')) return;
+  composerPopover.removeAttribute('hidden');
+  composerToggle.setAttribute('aria-expanded', 'true');
+  root?.setAttribute('data-composer', 'open');
+  window.setTimeout(() => {
+    composerInput?.focus();
+    autoResizeComposer();
+  }, 20);
+}
+
+function closeComposer({ restoreFocus = false } = {}) {
+  if (!composerPopover || !composerToggle) return;
+  composerPopover.setAttribute('hidden', 'hidden');
+  composerToggle.setAttribute('aria-expanded', 'false');
+  root?.setAttribute('data-composer', 'closed');
+  hideMentionSuggestions();
+  if (restoreFocus) {
+    composerToggle.focus();
   }
 }
 
@@ -301,7 +426,7 @@ async function refreshModels() {
 
   if (refreshModelsButton) {
     refreshModelsButton.disabled = true;
-    refreshModelsButton.textContent = 'Refreshing…';
+    setRefreshModelsState('loading');
   }
 
   isFetchingModels = true;
@@ -350,8 +475,8 @@ async function refreshModels() {
   } finally {
     isFetchingModels = false;
     if (refreshModelsButton) {
-      refreshModelsButton.textContent = 'Refresh';
       refreshModelsButton.disabled = !resolveActiveApiKey();
+      setRefreshModelsState(refreshModelsButton.disabled ? 'disabled' : 'idle');
     }
   }
 }
@@ -459,7 +584,7 @@ function handleSettingsSubmit(event) {
 
   syncSettingsForm();
   persistSettings();
-  updateSubtitle();
+  updateOnlineState();
 
   if (!cachedApiKey) {
     settingsFeedback &&
@@ -631,6 +756,14 @@ function handleComposerKeydown(event) {
 
 function handleGlobalKeydown(event) {
   if (event.key !== 'Escape') return;
+  if (isComposerOpen()) {
+    if (event.target instanceof Node && composerPopover?.contains(event.target)) {
+      event.stopPropagation();
+    }
+    closeComposer({ restoreFocus: true });
+    return;
+  }
+
   if (!settingsOverlay || settingsOverlay.hasAttribute('hidden')) return;
   if (event.target instanceof Node && settingsOverlay.contains(event.target)) {
     event.stopPropagation();
@@ -655,7 +788,7 @@ async function sendMessage(event) {
 
   if (!cachedApiKey || !cachedModel) {
     readPersistedSettings();
-    updateSubtitle();
+    updateOnlineState();
   }
 
   if (!cachedApiKey) {
@@ -720,8 +853,15 @@ function handleTrayAction(action) {
       closeTrayMenu();
       openSettings();
       break;
+    case 'cycle-skin':
+      closeTrayMenu();
+      cycleSkin();
+      break;
     case 'collapse':
       root?.classList.toggle('is-collapsed');
+      if (root?.classList.contains('is-collapsed')) {
+        closeComposer();
+      }
       break;
     default:
       console.info('Unhandled tray action', action);
@@ -729,20 +869,26 @@ function handleTrayAction(action) {
 }
 
 function bindEvents() {
+  composerToggle?.addEventListener('click', () => {
+    if (isComposerOpen()) {
+      closeComposer({ restoreFocus: true });
+    } else {
+      openComposer();
+    }
+  });
+
+  composerClose?.addEventListener('click', () => {
+    closeComposer({ restoreFocus: true });
+  });
+
   trayToggle?.addEventListener('click', () => {
     toggleTrayMenu();
   });
 
-  document.addEventListener('pointerdown', (event) => {
-    if (!trayMenu) return;
-    if (event.target instanceof Node && tray?.contains(event.target)) return;
-    closeTrayMenu();
-  });
-
   trayMenu?.addEventListener('click', (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const action = target.dataset.action;
+    const button = event.target instanceof HTMLElement ? event.target.closest('.tray-action') : null;
+    if (!button) return;
+    const action = button.dataset.action;
     if (!action) return;
     handleTrayAction(action);
   });
@@ -755,11 +901,30 @@ function bindEvents() {
   composerForm?.addEventListener('submit', sendMessage);
 
   document.addEventListener('pointerdown', (event) => {
-    if (!mentionSuggestions || mentionSuggestions.hasAttribute('hidden')) return;
-    if (event.target instanceof Node && (mentionSuggestions.contains(event.target) || composerInput?.contains?.(event.target))) {
-      return;
+    if (!(event.target instanceof Node)) return;
+
+    if (trayMenu && !trayMenu.hasAttribute('hidden')) {
+      if (!(tray?.contains(event.target))) {
+        closeTrayMenu();
+      }
     }
-    hideMentionSuggestions();
+
+    if (isComposerOpen()) {
+      if (
+        composerPopover &&
+        !composerPopover.contains(event.target) &&
+        !composerToggle?.contains(event.target)
+      ) {
+        closeComposer();
+      }
+    }
+
+    if (mentionSuggestions && !mentionSuggestions.hasAttribute('hidden')) {
+      if (mentionSuggestions.contains(event.target) || composerInput?.contains?.(event.target)) {
+        return;
+      }
+      hideMentionSuggestions();
+    }
   });
 
   appletClose?.addEventListener('click', () => {
@@ -798,14 +963,16 @@ function bindEvents() {
 
 function init() {
   readPersistedSettings();
-  updateSubtitle();
+  updateOnlineState();
   autoResizeComposer();
+  root?.setAttribute('data-composer', 'closed');
   appendMessage(
     'assistant',
-    'Hi! I\'m Nimbus. Ask anything or type @ to launch an applet. Add your OpenAI key from the ☰ taskbar when you want me to reach GPT-5 models.'
+    'Nimbus is ready whenever you are. Tap the chat bubble to talk or type @ to launch an applet.'
   );
 }
 
+restoreSkinPreference();
 bindEvents();
 loadRegistry().finally(() => {
   init();
