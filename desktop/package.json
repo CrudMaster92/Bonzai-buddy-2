@@ -1,0 +1,14 @@
+{
+  "name": "nimbus-desktop",
+  "version": "0.1.0",
+  "description": "Desktop tray shell for Nimbus Buddy",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "electron": "^28.2.0"
+  }
+}

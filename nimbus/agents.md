@@ -41,3 +41,18 @@ settings. When extending or refactoring the UI, keep the following rules in mind
 When expanding this folder, document any non-trivial design decisions here and keep the
 YAML summary aligned. Avoid reusing the "Cirrus" label in UI copy; the buddy's canonical
 name is **Nimbus**.
+
+## Desktop shell bridge
+
+Nimbus now expects to run inside the Electron tray wrapper under `/desktop`. All network
+traffic for the OpenAI Responses and Models APIs flows through the preload bridge
+(`window.desktopAPI`). The renderer no longer reads or stores the raw API key. When
+working in this folder:
+
+- Treat `nimbus.js` as the authoritative client for talking to the preload bridge. Do
+  not reintroduce direct `fetch` calls for OpenAI endpoints; instead, add IPC hooks in
+  the desktop shell if extra behaviour is required.
+- Settings panels should assume the key can only be masked or replaced. Avoid adding new
+  UI that attempts to reveal the stored key inside the page.
+- Registry reads now come through the bridge when the desktop shell is present. Keep the
+  fallback `fetch` logic intact for browser previews.

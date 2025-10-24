@@ -33,6 +33,10 @@ const STORAGE_KEYS = {
   modelsCache: 'nimbus.openai.modelsCache',
 };
 
+const desktopAPI = window.desktopAPI ?? null;
+const isDesktopShell = Boolean(desktopAPI);
+const STORED_KEY_TOKEN = '__stored__';
+
 const SKIN_STORAGE_KEY = 'nimbus.appearance.skin';
 
 const SKINS = [
@@ -64,6 +68,15 @@ const SKIN_INDEX = new Map(SKINS.map((skin) => [skin.id, skin]));
 
 let activeSkin = root?.dataset.skin ?? 'default';
 const appliedSkinProperties = new Set();
+
+let cachedApiKey = '';
+let hasStoredApiKey = false;
+let cachedModel = '';
+let cachedModels = [];
+let conversationLog = [];
+let isFetchingModels = false;
+let isAwaitingResponse = false;
+let modelsFingerprint = '';
 
 function applySkin(skinId, { persist = true } = {}) {
   if (!root) return;
@@ -120,13 +133,6 @@ const MASKED_KEY_VALUE = '••••••••••••';
 
 let registryEntries = [];
 let activeMention = null;
-let cachedApiKey = '';
-let cachedModel = '';
-let cachedModels = [];
-let conversationLog = [];
-let isFetchingModels = false;
-let isAwaitingResponse = false;
-let modelsFingerprint = '';
 
 function appendMessage(role, content) {
   if (!messageLog) return;
@@ -145,23 +151,47 @@ function autoResizeComposer() {
   composerInput.style.height = `${composerInput.scrollHeight}px`;
 }
 
-function readPersistedSettings() {
+async function readPersistedSettings() {
+  if (isDesktopShell && desktopAPI) {
+    try {
+      const settings = await desktopAPI.loadSettings();
+      hasStoredApiKey = Boolean(settings?.hasApiKey);
+      cachedApiKey = hasStoredApiKey ? STORED_KEY_TOKEN : '';
+      cachedModel = settings?.model ?? '';
+      cachedModels = Array.isArray(settings?.models) ? settings.models : [];
+      modelsFingerprint = hasStoredApiKey ? STORED_KEY_TOKEN : '';
+    } catch (error) {
+      console.warn('Unable to read settings from desktop shell', error);
+      cachedApiKey = '';
+      cachedModel = '';
+      cachedModels = [];
+      hasStoredApiKey = false;
+      modelsFingerprint = '';
+    }
+    return;
+  }
+
   try {
     cachedApiKey = window.localStorage.getItem(STORAGE_KEYS.apiKey) ?? '';
     cachedModel = window.localStorage.getItem(STORAGE_KEYS.model) ?? '';
     const storedModels = window.localStorage.getItem(STORAGE_KEYS.modelsCache);
     cachedModels = storedModels ? JSON.parse(storedModels) : [];
+    hasStoredApiKey = Boolean(cachedApiKey);
     modelsFingerprint = cachedApiKey;
   } catch (error) {
     console.warn('Unable to read settings from storage', error);
     cachedApiKey = '';
     cachedModel = '';
     cachedModels = [];
+    hasStoredApiKey = false;
     modelsFingerprint = '';
   }
 }
 
-function persistSettings() {
+async function persistSettings() {
+  if (isDesktopShell) {
+    return;
+  }
   try {
     if (cachedApiKey) {
       window.localStorage.setItem(STORAGE_KEYS.apiKey, cachedApiKey);
@@ -188,7 +218,8 @@ function persistSettings() {
 
 function updateOnlineState() {
   if (!root) return;
-  root.dataset.online = cachedApiKey && cachedModel ? 'true' : 'false';
+  const isConfigured = hasStoredApiKey || (!!cachedApiKey && cachedApiKey !== STORED_KEY_TOKEN);
+  root.dataset.online = isConfigured && cachedModel ? 'true' : 'false';
 }
 
 function applyMaskedKey() {
@@ -196,16 +227,29 @@ function applyMaskedKey() {
   apiKeyInput.type = 'password';
   apiKeyInput.value = MASKED_KEY_VALUE;
   apiKeyInput.dataset.state = 'masked';
-  apiKeyToggle.disabled = false;
+  apiKeyToggle.disabled = hasStoredApiKey ? true : false;
   apiKeyToggle.dataset.visibility = 'hidden';
-  apiKeyToggle.setAttribute('aria-label', 'Reveal API key');
+  apiKeyToggle.setAttribute(
+    'aria-label',
+    hasStoredApiKey ? 'API key stored securely' : 'Reveal API key'
+  );
 }
 
 function resetApiKeyField() {
   if (!apiKeyInput || !apiKeyToggle) return;
-  if (cachedApiKey) {
+  if (hasStoredApiKey) {
     applyMaskedKey();
-    apiKeyHelp && (apiKeyHelp.textContent = 'A key is stored locally. Enter a new key to replace it.');
+    if (apiKeyHelp) {
+      apiKeyHelp.textContent =
+        'Nimbus keeps your API key in the desktop shell. Enter a new key to replace it or leave blank to remove it.';
+    }
+  } else if (cachedApiKey && !isDesktopShell) {
+    applyMaskedKey();
+    apiKeyHelp &&
+      (apiKeyHelp.textContent = 'A key is stored locally. Enter a new key to replace it.');
+    apiKeyToggle.disabled = false;
+    apiKeyToggle.dataset.visibility = 'hidden';
+    apiKeyToggle.setAttribute('aria-label', 'Reveal API key');
   } else {
     apiKeyInput.type = 'password';
     apiKeyInput.value = '';
@@ -258,20 +302,20 @@ function syncSettingsForm() {
   populateModelOptions(cachedModels, cachedModel);
   settingsFeedback && (settingsFeedback.textContent = '');
   if (refreshModelsButton) {
-    refreshModelsButton.disabled = !resolveActiveApiKey();
+    refreshModelsButton.disabled = !resolveActiveApiKey().hasKey;
     setRefreshModelsState(refreshModelsButton.disabled ? 'disabled' : 'idle');
   }
 }
 
-function openSettings() {
-  readPersistedSettings();
+async function openSettings() {
+  await readPersistedSettings();
   syncSettingsForm();
   closeComposer();
   settingsOverlay?.removeAttribute('hidden');
   window.setTimeout(() => {
     apiKeyInput?.focus();
   }, 50);
-  if (cachedApiKey && !cachedModels.length) {
+  if (hasStoredApiKey && !cachedModels.length && refreshModelsButton && !refreshModelsButton.disabled) {
     refreshModels();
   }
 }
@@ -283,16 +327,49 @@ function closeSettings() {
 }
 
 function resolveActiveApiKey() {
-  if (!apiKeyInput) return cachedApiKey;
-  if (apiKeyInput.dataset.state === 'masked') {
-    return cachedApiKey;
+  if (!apiKeyInput) {
+    if (isDesktopShell) {
+      return { kind: hasStoredApiKey ? 'stored' : 'none', hasKey: hasStoredApiKey };
+    }
+    const value = cachedApiKey?.trim?.() ?? '';
+    return value
+      ? { kind: 'stored', hasKey: true, value }
+      : { kind: 'none', hasKey: false };
   }
-  const candidate = apiKeyInput.value.trim();
-  return candidate || cachedApiKey;
+
+  const state = apiKeyInput.dataset.state;
+  const rawValue = apiKeyInput.value.trim();
+
+  if (state === 'masked') {
+    if (isDesktopShell) {
+      return { kind: hasStoredApiKey ? 'stored' : 'none', hasKey: hasStoredApiKey };
+    }
+    return cachedApiKey
+      ? { kind: 'stored', hasKey: true, value: cachedApiKey }
+      : { kind: 'none', hasKey: false };
+  }
+
+  if (!rawValue) {
+    if (state === 'empty') {
+      return { kind: hasStoredApiKey ? 'stored' : 'none', hasKey: hasStoredApiKey };
+    }
+    if (!isDesktopShell && cachedApiKey) {
+      return { kind: 'stored', hasKey: true, value: cachedApiKey };
+    }
+    return { kind: hasStoredApiKey ? 'stored' : 'none', hasKey: hasStoredApiKey };
+  }
+
+  return { kind: 'inline', hasKey: true, value: rawValue };
 }
 
 function handleApiKeyToggle() {
   if (!apiKeyInput || !apiKeyToggle) return;
+  if (isDesktopShell && hasStoredApiKey) {
+    settingsFeedback &&
+      (settingsFeedback.textContent = 'Nimbus keeps your key outside the page. Enter a new key to replace it.');
+    return;
+  }
+
   const state = apiKeyInput.dataset.state;
   if (cachedApiKey && state === 'masked') {
     apiKeyInput.type = 'text';
@@ -323,18 +400,19 @@ function handleApiKeyToggle() {
 function handleApiKeyInput() {
   if (!apiKeyInput || !apiKeyToggle) return;
   const rawValue = apiKeyInput.value;
-  if (apiKeyInput.dataset.state === 'masked' && rawValue !== MASKED_KEY_VALUE) {
+  const state = apiKeyInput.dataset.state;
+  if (state === 'masked' && rawValue !== MASKED_KEY_VALUE) {
     apiKeyInput.dataset.state = rawValue ? 'editing' : 'empty';
-  } else if (apiKeyInput.dataset.state === 'revealed' && rawValue !== cachedApiKey) {
+  } else if (state === 'revealed' && rawValue !== cachedApiKey) {
     apiKeyInput.dataset.state = rawValue ? 'editing' : 'empty';
-  } else if (apiKeyInput.dataset.state !== 'masked') {
+  } else if (state !== 'masked') {
     apiKeyInput.dataset.state = rawValue ? 'editing' : 'empty';
   }
 
-  apiKeyToggle.disabled = !rawValue && !cachedApiKey;
+  apiKeyToggle.disabled = !rawValue && !cachedApiKey && !hasStoredApiKey;
 
   if (refreshModelsButton) {
-    refreshModelsButton.disabled = !resolveActiveApiKey();
+    refreshModelsButton.disabled = !resolveActiveApiKey().hasKey;
     setRefreshModelsState(refreshModelsButton.disabled ? 'disabled' : 'idle');
   }
 }
@@ -417,8 +495,8 @@ function extractTextFromResponse(payload) {
 
 async function refreshModels() {
   if (isFetchingModels) return;
-  const key = resolveActiveApiKey();
-  if (!key) {
+  const keyStatus = resolveActiveApiKey();
+  if (!keyStatus.hasKey) {
     settingsFeedback &&
       (settingsFeedback.textContent = 'Enter and save an API key before refreshing models.');
     return;
@@ -432,6 +510,35 @@ async function refreshModels() {
   isFetchingModels = true;
 
   try {
+    if (isDesktopShell && desktopAPI) {
+      const payload = {};
+      if (keyStatus.kind === 'stored') {
+        payload.useStoredKey = true;
+      } else if (keyStatus.kind === 'inline' && keyStatus.value) {
+        payload.apiKey = keyStatus.value;
+      }
+      const result = await desktopAPI.fetchModels(payload);
+      const models = Array.isArray(result?.models)
+        ? result.models
+        : Array.isArray(result)
+        ? result
+        : [];
+      cachedModels = models;
+      if (payload.useStoredKey) {
+        modelsFingerprint = STORED_KEY_TOKEN;
+      }
+      populateModelOptions(models, cachedModel);
+      if (!models.length) {
+        settingsFeedback &&
+          (settingsFeedback.textContent = 'No GPT-compatible models were returned for this key.');
+      } else {
+        settingsFeedback &&
+          (settingsFeedback.textContent = `Loaded ${models.length} models.`);
+      }
+      return;
+    }
+
+    const key = keyStatus.value;
     const response = await fetch(OPENAI_MODELS_ENDPOINT, {
       headers: {
         Authorization: `Bearer ${key}`,
@@ -456,17 +563,11 @@ async function refreshModels() {
       populateModelOptions([], '');
     } else {
       cachedModels = nextModels;
-      modelsFingerprint = key;
+      modelsFingerprint = key ?? '';
       populateModelOptions(nextModels, cachedModel);
       settingsFeedback &&
         (settingsFeedback.textContent = `Loaded ${nextModels.length} models.`);
-      const canPersist =
-        !apiKeyInput ||
-        apiKeyInput.dataset.state === 'masked' ||
-        (apiKeyInput.dataset.state === 'revealed' && apiKeyInput.value === cachedApiKey);
-      if (canPersist) {
-        persistSettings();
-      }
+      await persistSettings();
     }
   } catch (error) {
     console.error(error);
@@ -475,16 +576,16 @@ async function refreshModels() {
   } finally {
     isFetchingModels = false;
     if (refreshModelsButton) {
-      refreshModelsButton.disabled = !resolveActiveApiKey();
+      refreshModelsButton.disabled = !resolveActiveApiKey().hasKey;
       setRefreshModelsState(refreshModelsButton.disabled ? 'disabled' : 'idle');
     }
   }
 }
 
 async function requestAssistantResponse() {
-  const key = cachedApiKey;
+  const keyStatus = resolveActiveApiKey();
   const model = cachedModel;
-  if (!key || !model) {
+  if (!model || !keyStatus.hasKey) {
     throw new Error('Missing API configuration');
   }
 
@@ -492,6 +593,22 @@ async function requestAssistantResponse() {
     conversationLog.unshift({ role: 'system', content: SYSTEM_MESSAGE });
   }
 
+  if (isDesktopShell && desktopAPI) {
+    const response = await desktopAPI.sendMessage({
+      model,
+      conversation: conversationLog,
+    });
+    if (!response) {
+      throw new Error('Nimbus desktop shell did not return a response.');
+    }
+    const reply = typeof response === 'string' ? response : response.reply;
+    if (!reply) {
+      throw new Error('Nimbus desktop shell returned an empty response.');
+    }
+    return reply;
+  }
+
+  const key = keyStatus.value;
   const payload = {
     model,
     input: conversationLog.map((item) => ({
@@ -533,25 +650,37 @@ async function requestAssistantResponse() {
   return reply;
 }
 
-function handleSettingsSubmit(event) {
+async function handleSettingsSubmit(event) {
   event.preventDefault();
 
-  const previousKey = cachedApiKey;
-  let nextKey = cachedApiKey;
+  const previousHasKey = hasStoredApiKey || (!!cachedApiKey && cachedApiKey !== STORED_KEY_TOKEN);
+  const previousModel = cachedModel;
+
+  let nextKeyDirective = 'keep';
+  let submittedKey = '';
+
   if (apiKeyInput) {
     const state = apiKeyInput.dataset.state;
     const rawValue = apiKeyInput.value.trim();
-    if (state === 'masked') {
-      nextKey = cachedApiKey;
-    } else if (!rawValue) {
-      nextKey = '';
-    } else if (rawValue !== MASKED_KEY_VALUE) {
-      nextKey = rawValue;
+    if (isDesktopShell) {
+      if (state === 'masked') {
+        nextKeyDirective = 'keep';
+      } else if (!rawValue) {
+        nextKeyDirective = hasStoredApiKey ? 'remove' : 'keep';
+      } else {
+        nextKeyDirective = 'update';
+        submittedKey = rawValue;
+      }
+    } else {
+      if (state === 'masked') {
+        submittedKey = cachedApiKey;
+      } else if (!rawValue) {
+        submittedKey = '';
+      } else if (rawValue !== MASKED_KEY_VALUE) {
+        submittedKey = rawValue;
+      }
     }
   }
-
-  const keyChanged = nextKey !== previousKey;
-  cachedApiKey = nextKey;
 
   let nextModel = cachedModel;
   if (modelSelect) {
@@ -559,42 +688,61 @@ function handleSettingsSubmit(event) {
       nextModel = modelSelect.value;
     } else if (!modelSelect.disabled && !modelSelect.value) {
       nextModel = '';
-    } else if (modelSelect.disabled && keyChanged) {
+    } else if (modelSelect.disabled && nextKeyDirective !== 'keep') {
       nextModel = '';
     }
   }
 
-  if (keyChanged) {
-    if (!nextKey || modelsFingerprint !== nextKey) {
-      cachedModels = [];
-      nextModel = '';
+  try {
+    if (isDesktopShell && desktopAPI) {
+      const result = await desktopAPI.saveSettings({
+        keyDirective: nextKeyDirective,
+        apiKey: submittedKey,
+        model: nextModel,
+      });
+      hasStoredApiKey = Boolean(result?.hasApiKey);
+      cachedApiKey = hasStoredApiKey ? STORED_KEY_TOKEN : '';
+      cachedModel = result?.model ?? '';
+      cachedModels = Array.isArray(result?.models) ? result.models : cachedModels;
+      modelsFingerprint = hasStoredApiKey ? STORED_KEY_TOKEN : '';
+    } else {
+      cachedApiKey = submittedKey;
+      cachedModel = nextModel;
+      if (!cachedApiKey) {
+        window.localStorage.removeItem(STORAGE_KEYS.apiKey);
+        window.localStorage.removeItem(STORAGE_KEYS.modelsCache);
+      }
+      if (!cachedModel) {
+        window.localStorage.removeItem(STORAGE_KEYS.model);
+      }
+      await persistSettings();
+      hasStoredApiKey = Boolean(cachedApiKey);
     }
-  }
-
-  cachedModel = nextModel;
-
-  if (!cachedApiKey) {
-    window.localStorage.removeItem(STORAGE_KEYS.apiKey);
-    window.localStorage.removeItem(STORAGE_KEYS.modelsCache);
-  }
-
-  if (!cachedModel) {
-    window.localStorage.removeItem(STORAGE_KEYS.model);
+  } catch (error) {
+    console.error(error);
+    settingsFeedback &&
+      (settingsFeedback.textContent =
+        'Nimbus could not save your settings. Double-check the desktop app permissions.');
+    return;
   }
 
   syncSettingsForm();
-  persistSettings();
   updateOnlineState();
 
-  if (!cachedApiKey) {
-    settingsFeedback &&
-      (settingsFeedback.textContent = 'API key removed. Nimbus will stay offline until you add a new key.');
-  } else {
-    settingsFeedback && (settingsFeedback.textContent = 'Settings saved.');
-  }
-
+  const keyChanged = isDesktopShell
+    ? nextKeyDirective === 'update' || nextKeyDirective === 'remove'
+    : previousHasKey !== (cachedApiKey !== '');
   if (keyChanged) {
     conversationLog = [];
+  }
+
+  if (!hasStoredApiKey && (!cachedApiKey || cachedApiKey === '')) {
+    settingsFeedback &&
+      (settingsFeedback.textContent = 'API key removed. Nimbus will stay offline until you add a new key.');
+  } else if (cachedModel !== previousModel) {
+    settingsFeedback && (settingsFeedback.textContent = 'Model updated.');
+  } else {
+    settingsFeedback && (settingsFeedback.textContent = 'Settings saved.');
   }
 
   window.setTimeout(() => {
@@ -603,6 +751,17 @@ function handleSettingsSubmit(event) {
 }
 
 async function loadRegistry() {
+  if (isDesktopShell && desktopAPI) {
+    try {
+      const entries = await desktopAPI.loadRegistry();
+      registryEntries = Array.isArray(entries) ? entries : [];
+    } catch (error) {
+      console.error('Failed to load registry from desktop shell', error);
+      registryEntries = [];
+    }
+    return;
+  }
+
   try {
     const response = await fetch(registryPath);
     if (!response.ok) {
@@ -708,9 +867,9 @@ function insertMention(entry) {
     ? `${before}${mentionText}${separator}${afterStripped}`
     : `${before}${mentionText}${separator}`;
   composerInput.value = nextValue;
-  const caretPosition = (afterStripped.length
+  const caretPosition = afterStripped.length
     ? before.length + mentionText.length + separator.length
-    : composerInput.value.length);
+    : composerInput.value.length;
   composerInput.setSelectionRange(caretPosition, caretPosition);
   composerInput.focus();
   autoResizeComposer();
@@ -786,12 +945,11 @@ async function sendMessage(event) {
   autoResizeComposer();
   hideMentionSuggestions();
 
-  if (!cachedApiKey || !cachedModel) {
-    readPersistedSettings();
-    updateOnlineState();
-  }
+  await readPersistedSettings();
+  updateOnlineState();
 
-  if (!cachedApiKey) {
+  const keyStatus = resolveActiveApiKey();
+  if (!keyStatus.hasKey) {
     appendMessage('system', 'Add your OpenAI API key in the settings panel to send messages.');
     return;
   }
@@ -949,8 +1107,11 @@ function bindEvents() {
     handleApiKeyInput();
   });
   apiKeyInput?.addEventListener('blur', () => {
-    if (apiKeyInput.dataset.state === 'revealed' && apiKeyInput.value === cachedApiKey) {
+    if (!isDesktopShell && apiKeyInput.dataset.state === 'revealed' && apiKeyInput.value === cachedApiKey) {
       applyMaskedKey();
+    }
+    if (isDesktopShell && apiKeyInput.dataset.state === 'revealed') {
+      apiKeyInput.dataset.state = 'editing';
     }
   });
   settingsOverlay?.addEventListener('pointerdown', (event) => {
@@ -961,8 +1122,8 @@ function bindEvents() {
   document.addEventListener('keydown', handleGlobalKeydown);
 }
 
-function init() {
-  readPersistedSettings();
+async function init() {
+  await readPersistedSettings();
   updateOnlineState();
   autoResizeComposer();
   root?.setAttribute('data-composer', 'closed');

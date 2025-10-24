@@ -25,6 +25,23 @@ root/
 
 ## Getting Started
 
+### Desktop tray shell
+
+Nimbus now ships with a native wrapper so it can live in the system tray without
+exposing API credentials to the web runtime.
+
+```bash
+cd desktop
+npm install
+npm start
+```
+
+The Electron shell hides Nimbus from the taskbar, keeps the window always on top,
+and proxies OpenAI requests through the main process so the API key never reaches
+the renderer.
+
+### Browser preview
+
 1. Open `nimbus/index.html` in a browser to preview the buddy scaffold.
 2. Populate `applets.json` with entries that point to individual applet folders.
 3. Create a new folder under `applets/` for each mini-app, including `agents.*` files and
