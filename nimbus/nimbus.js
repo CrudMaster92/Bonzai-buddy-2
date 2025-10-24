@@ -18,6 +18,7 @@ const SKIN_OPTIONS = [
   { key: 'aurora-drift', label: 'Aurora Drift (Neon dusk)' },
   { key: 'sage-lantern', label: 'Sage Lantern (Garden glow)' },
   { key: 'robot-overdrive', label: 'Robot Overdrive (Chrome circuitry)' },
+  { key: 'mist-harbor', label: 'Mist Harbor (Coastal hush)' },
 ];
 const AVAILABLE_SKINS = new Set(SKIN_OPTIONS.map((entry) => entry.key));
 const SKIN_LABEL_LOOKUP = SKIN_OPTIONS.reduce((map, entry) => {

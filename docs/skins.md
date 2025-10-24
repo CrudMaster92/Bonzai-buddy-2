@@ -14,13 +14,14 @@ between sessions.
 | `aurora-drift` | Night-sky bloom with neon cheeks and turquoise audio controls for an after-hours vibe. |
 | `sage-lantern` | Verdant lantern glow with leaf-like silhouette, warm amber cheeks, and mossy controls for a grounded feel. |
 | `robot-overdrive` | Polished chrome shell with cyan circuitry, holo glow, and industrial shadows for a retro-futuristic companion. |
+| `mist-harbor` | Fog-washed shoreline blues with sea-glass trim and gentle coral blush for a calm coastal companion. |
 
 Run-time helpers expose the available keys in case you want to wire a settings toggle:
 
 ```js
-window.nimbusSkins.list(); // ["cumulus", "aurora-drift", "sage-lantern", "robot-overdrive"]
+window.nimbusSkins.list(); // ["cumulus", "aurora-drift", "sage-lantern", "robot-overdrive", "mist-harbor"]
 window.nimbusSkins.current(); // returns the currently applied skin key
-window.nimbusSkins.apply('aurora-drift'); // switches skin and persists the choice
+window.nimbusSkins.apply('mist-harbor'); // switches skin and persists the choice
 ```
 
 You can also preview a skin by appending `?skin=aurora-drift` to the Nimbus URL.
