@@ -7,6 +7,8 @@ const composerForm = document.getElementById('composer-form');
 const composerInput = document.getElementById('composer-input');
 const statusRegion = document.getElementById('nimbus-status');
 const chatStatusText = document.querySelector('[data-chat-status]');
+const buddy = document.querySelector('.buddy');
+const chatHeader = document.querySelector('.chat-header');
 
 if (root && !root.hasAttribute('data-chat-open')) {
   root.setAttribute('data-chat-open', 'false');
@@ -45,6 +47,118 @@ let cachedModels = [];
 let conversationHistory = [{ role: 'system', content: SYSTEM_MESSAGE }];
 let isSending = false;
 let removeStoredKey = false;
+let chatPanelPosition = null;
+let chatDragPointerId = null;
+let chatDragOffset = { x: 0, y: 0 };
+
+function clampChatPanelPosition(left, top, rect) {
+  if (!chatPanel) return { left, top };
+  const panelRect = rect ?? chatPanel.getBoundingClientRect();
+  const width = panelRect.width || chatPanel.offsetWidth || 0;
+  const height = panelRect.height || chatPanel.offsetHeight || 0;
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const padding = 12;
+
+  const minLeft = padding;
+  const minTop = padding;
+  const maxLeft = Math.max(minLeft, viewportWidth - width - padding);
+  const maxTop = Math.max(minTop, viewportHeight - height - padding);
+
+  return {
+    left: Math.min(Math.max(left, minLeft), maxLeft),
+    top: Math.min(Math.max(top, minTop), maxTop),
+  };
+}
+
+function applyChatPanelPosition(position) {
+  if (!chatPanel || !position) return;
+  chatPanel.style.left = `${position.left}px`;
+  chatPanel.style.top = `${position.top}px`;
+  chatPanel.style.right = 'auto';
+  chatPanel.style.bottom = 'auto';
+}
+
+function computeDefaultChatPosition() {
+  if (!chatPanel) return null;
+  const panelRect = chatPanel.getBoundingClientRect();
+  const buddyRect = buddy?.getBoundingClientRect();
+  const rootRect = root?.getBoundingClientRect();
+
+  let left = window.innerWidth - panelRect.width - 32;
+  let top = window.innerHeight - panelRect.height - 32;
+
+  if (buddyRect) {
+    left = buddyRect.right + 16;
+    top = buddyRect.top + buddyRect.height / 2 - panelRect.height / 2;
+  } else if (rootRect) {
+    left = rootRect.right + 16;
+    top = rootRect.top + rootRect.height / 2 - panelRect.height / 2;
+  }
+
+  return clampChatPanelPosition(left, top, panelRect);
+}
+
+function positionChatPanel(options = {}) {
+  if (!chatPanel || chatPanel.hasAttribute('hidden')) return;
+  const { reset = false } = options;
+  const rect = chatPanel.getBoundingClientRect();
+
+  if (!chatPanelPosition || reset) {
+    chatPanelPosition = computeDefaultChatPosition();
+  } else {
+    chatPanelPosition = clampChatPanelPosition(chatPanelPosition.left, chatPanelPosition.top, rect);
+  }
+
+  applyChatPanelPosition(chatPanelPosition);
+}
+
+function handleWindowResize() {
+  if (!chatPanel || chatPanel.hasAttribute('hidden') || !chatPanelPosition) {
+    return;
+  }
+  const rect = chatPanel.getBoundingClientRect();
+  chatPanelPosition = clampChatPanelPosition(chatPanelPosition.left, chatPanelPosition.top, rect);
+  applyChatPanelPosition(chatPanelPosition);
+}
+
+function startChatDrag(event) {
+  if (!chatPanel) return;
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  if (event.target.closest('button')) return;
+
+  event.preventDefault();
+  const rect = chatPanel.getBoundingClientRect();
+  if (!chatPanelPosition) {
+    chatPanelPosition = clampChatPanelPosition(rect.left, rect.top, rect);
+    applyChatPanelPosition(chatPanelPosition);
+  }
+  chatDragPointerId = event.pointerId;
+  chatDragOffset = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  };
+  chatHeader?.setAttribute('data-dragging', 'true');
+  chatPanel.setPointerCapture(chatDragPointerId);
+}
+
+function updateChatDrag(event) {
+  if (!chatPanel || chatDragPointerId !== event.pointerId) return;
+  const rect = chatPanel.getBoundingClientRect();
+  const desiredLeft = event.clientX - chatDragOffset.x;
+  const desiredTop = event.clientY - chatDragOffset.y;
+  chatPanelPosition = clampChatPanelPosition(desiredLeft, desiredTop, rect);
+  applyChatPanelPosition(chatPanelPosition);
+}
+
+function endChatDrag(event) {
+  if (!chatPanel || chatDragPointerId !== event.pointerId) return;
+  if (chatPanel.hasPointerCapture(chatDragPointerId)) {
+    chatPanel.releasePointerCapture(chatDragPointerId);
+  }
+  chatDragPointerId = null;
+  chatHeader?.removeAttribute('data-dragging');
+}
 
 function appendMessage(role, content) {
   if (!messageLog) return null;
@@ -497,7 +611,10 @@ function toggleChatPanel(forceOpen) {
     root?.setAttribute('data-chat-open', 'true');
     const online = root?.dataset.online === 'true';
     updateChatStatus(online ? 'Ready' : 'Set up');
-    window.setTimeout(() => composerInput?.focus(), 40);
+    window.requestAnimationFrame(() => {
+      positionChatPanel({ reset: !chatPanelPosition });
+      window.setTimeout(() => composerInput?.focus(), 40);
+    });
   } else {
     chatPanel.setAttribute('hidden', 'hidden');
     chatToggle.setAttribute('aria-expanded', 'false');
@@ -517,6 +634,10 @@ function installEventListeners() {
   chatClose?.addEventListener('click', () => toggleChatPanel(false));
   composerInput?.addEventListener('input', autoResizeComposer);
   composerForm?.addEventListener('submit', handleComposerSubmit);
+  chatHeader?.addEventListener('pointerdown', startChatDrag);
+  chatHeader?.addEventListener('pointermove', updateChatDrag);
+  chatHeader?.addEventListener('pointerup', endChatDrag);
+  chatHeader?.addEventListener('pointercancel', endChatDrag);
   settingsClose?.addEventListener('click', closeSettings);
   settingsCancel?.addEventListener('click', closeSettings);
   settingsForm?.addEventListener('submit', saveSettings);
@@ -548,6 +669,8 @@ function installEventListeners() {
       }
     }
   });
+
+  window.addEventListener('resize', handleWindowResize);
 
   if (desktopAPI?.onSettingsOpen) {
     desktopAPI.onSettingsOpen(() => {
