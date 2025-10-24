@@ -89,6 +89,7 @@ const SKIN_OPTIONS = [
   { key: 'sage-lantern', label: 'Sage Lantern (Garden glow)' },
   { key: 'robot-overdrive', label: 'Robot Overdrive (Chrome circuitry)' },
   { key: 'mist-harbor', label: 'Mist Harbor (Coastal hush)' },
+  { key: 'whisker-haven', label: 'Whisker Haven (Cozy cat companion)' },
   { key: 'cubic-cadet', label: 'Cubic Cadet (Blocky blaze)' },
 ];
 const AVAILABLE_SKINS = new Set(SKIN_OPTIONS.map((entry) => entry.key));
