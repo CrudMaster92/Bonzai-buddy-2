@@ -15,11 +15,12 @@ between sessions.
 | `sage-lantern` | Verdant lantern glow with leaf-like silhouette, warm amber cheeks, and mossy controls for a grounded feel. |
 | `robot-overdrive` | Polished chrome shell with cyan circuitry, holo glow, and industrial shadows for a retro-futuristic companion. |
 | `mist-harbor` | Fog-washed shoreline blues with sea-glass trim and gentle coral blush for a calm coastal companion. |
+| `cubic-cadet` | Blocky ember chassis with squared edges, flexing arm panels, and sunny circuitry accents for a retro arcade cadet. |
 
 Run-time helpers expose the available keys in case you want to wire a settings toggle:
 
 ```js
-window.nimbusSkins.list(); // ["cumulus", "aurora-drift", "sage-lantern", "robot-overdrive", "mist-harbor"]
+window.nimbusSkins.list(); // ["cumulus", "aurora-drift", "sage-lantern", "robot-overdrive", "mist-harbor", "cubic-cadet"]
 window.nimbusSkins.current(); // returns the currently applied skin key
 window.nimbusSkins.apply('mist-harbor'); // switches skin and persists the choice
 ```
