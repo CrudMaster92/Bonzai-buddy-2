@@ -13,7 +13,7 @@ const voiceToggle = document.getElementById('voice-toggle');
 const voiceAudio = document.getElementById('voice-audio');
 
 const DEFAULT_SKIN = root?.dataset.skin || 'cumulus';
-const AVAILABLE_SKINS = new Set(['cumulus', 'aurora-drift']);
+const AVAILABLE_SKINS = new Set(['cumulus', 'aurora-drift', 'sage-lantern']);
 const SKIN_STORAGE_KEY = 'nimbus.shell.skin';
 
 function normaliseSkinVariant(value) {
