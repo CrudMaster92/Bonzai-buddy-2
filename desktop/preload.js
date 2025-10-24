@@ -6,4 +6,10 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   fetchModels: (payload) => ipcRenderer.invoke('openai:fetchModels', payload),
   sendMessage: (payload) => ipcRenderer.invoke('chat:send', payload),
   loadRegistry: () => ipcRenderer.invoke('registry:load'),
+  onSettingsOpen: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const handler = () => callback();
+    ipcRenderer.on('settings:open', handler);
+    return () => ipcRenderer.removeListener('settings:open', handler);
+  },
 });

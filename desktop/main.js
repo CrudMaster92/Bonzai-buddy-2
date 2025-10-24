@@ -81,6 +81,20 @@ function createTray() {
       label: 'Show Nimbus',
       click: toggleWindow,
     },
+    {
+      label: 'Settings…',
+      click: () => {
+        const win = createWindow();
+        const send = () => win.webContents.send('settings:open');
+        if (win.webContents.isLoading()) {
+          win.webContents.once('did-finish-load', send);
+        } else {
+          send();
+        }
+        win.show();
+        win.focus();
+      },
+    },
     { type: 'separator' },
     {
       label: 'Quit Nimbus',
@@ -99,28 +113,30 @@ function createWindow() {
     return windowInstance;
   }
 
-  windowInstance = new BrowserWindow({
-    width: 420,
-    height: 560,
+  const windowOptions = {
+    width: 320,
+    height: 420,
     show: false,
     frame: false,
     resizable: false,
     skipTaskbar: true,
     alwaysOnTop: true,
-    transparent: false,
+    transparent: true,
+    hasShadow: false,
+    backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
-  });
+  };
+
+  if (process.platform === 'darwin') {
+    windowOptions.vibrancy = 'under-window';
+    windowOptions.visualEffectState = 'active';
+  }
+
+  windowInstance = new BrowserWindow(windowOptions);
 
   windowInstance.setMenuBarVisibility(false);
-  windowInstance.on('blur', () => {
-    if (!windowInstance) return;
-    if (windowInstance.webContents.isDevToolsOpened()) {
-      return;
-    }
-    windowInstance.hide();
-  });
 
   windowInstance.on('close', (event) => {
     if (!app.isQuiting) {
@@ -346,7 +362,24 @@ function prepareApp() {
       app.dock.hide();
     }
     createTray();
-    createWindow();
+    const win = createWindow();
+    const showBuddy = () => {
+      if (!win) return;
+      if (!win.isVisible()) {
+        const { x, y } = getWindowPosition();
+        win.setPosition(x, y, false);
+      }
+      if (typeof win.showInactive === 'function') {
+        win.showInactive();
+      } else {
+        win.show();
+      }
+    };
+    if (win.webContents.isLoading()) {
+      win.webContents.once('did-finish-load', showBuddy);
+    } else {
+      showBuddy();
+    }
   });
 
   app.on('window-all-closed', (event) => {
