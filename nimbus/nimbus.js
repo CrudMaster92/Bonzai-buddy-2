@@ -991,7 +991,7 @@ async function requestChatResponse(conversation) {
         role: entry.role,
         content: [
           {
-            type: 'text',
+            type: entry.role === 'assistant' ? 'output_text' : 'input_text',
             text: String(entry.content ?? ''),
           },
         ],
@@ -1014,6 +1014,9 @@ async function requestChatResponse(conversation) {
           combined.push(block.text);
         }
         if (block?.type === 'text' && typeof block.text === 'string') {
+          combined.push(block.text);
+        }
+        if (block?.type === 'summary_text' && typeof block.text === 'string') {
           combined.push(block.text);
         }
       }

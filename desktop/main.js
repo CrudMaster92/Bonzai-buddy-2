@@ -268,6 +268,8 @@ function extractTextFromResponse(payload) {
           chunks.push(block.text);
         } else if (block?.type === 'text' && typeof block.text === 'string') {
           chunks.push(block.text);
+        } else if (block?.type === 'summary_text' && typeof block.text === 'string') {
+          chunks.push(block.text);
         }
       }
     }
@@ -376,7 +378,7 @@ ipcMain.handle('chat:send', async (_event, payload = {}) => {
       role: item.role,
       content: [
         {
-          type: 'text',
+          type: item.role === 'assistant' ? 'output_text' : 'input_text',
           text: String(item.content ?? ''),
         },
       ],
